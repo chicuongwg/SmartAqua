@@ -7,12 +7,14 @@
     "allowArbitraryExtensions": true,
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    "typeRoots": ["node_modules/@types", "./declarations.d.ts"]
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
+    "declarations.d.ts"
   ]
 }

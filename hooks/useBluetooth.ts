@@ -172,6 +172,29 @@ export function useBluetooth() {
     }
   }
 
+  async function sendCommand(command: string) {
+    if (isMockMode) {
+      // Mock implementation - simulate sending command
+      console.log(`Mock sending command: ${command}`);
+      return true;
+    }
+    
+    if (!connectedDevice) return false;
+    
+    try {
+      // In a real implementation, you would encode and write the command to the characteristic
+      await connectedDevice.writeCharacteristicWithResponseForService(
+        ESP32_SERVICE_UUID,
+        ESP32_CHARACTERISTIC_UUID,
+        Buffer.from(command).toString('base64')
+      );
+      return true;
+    } catch (error) {
+      console.error('Command error:', error);
+      return false;
+    }
+  }
+
   async function disconnect() {
     if (isMockMode) {
       setConnectedDevice(null);
@@ -195,5 +218,6 @@ export function useBluetooth() {
     connectedDevice,
     readData,
     disconnect,
+    sendCommand, // Add this
   };
 }

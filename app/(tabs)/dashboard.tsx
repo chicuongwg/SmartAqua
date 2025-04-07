@@ -1,10 +1,15 @@
-import { useEffect, useState } from "react";
-import { StyleSheet, ScrollView, TouchableOpacity } from "react-native";
-import { router } from "expo-router";
-import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
-import { DataCard } from "@/components/DataCard";
-import { DataGraph } from "@/components/DataGraph";
+
+import { useEffect, useState } from 'react';
+import { StyleSheet, ScrollView } from 'react-native';
+import { router } from 'expo-router';
+
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { TouchableOpacity } from 'react-native';
+import { useBluetooth } from '@/hooks/useBluetooth';
+import { DataCard } from '@/components/DataCard';
+import { DataGraph } from '@/components/DataGraph';
+import AutoFeed from '@/components/AutoFeed';
 import { useMqtt } from "@/hooks/useMqtt"; // Import hook useMqtt
 
 type AquariumData = {
@@ -17,6 +22,7 @@ type AquariumData = {
 export default function DashboardScreen() {
   const [data, setData] = useState<AquariumData | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
 
   // Sử dụng useMqtt hook để lấy dữ liệu từ broker MQTT
   const rawData = useMqtt(
@@ -33,6 +39,9 @@ export default function DashboardScreen() {
     }
   }, [rawData]);
 
+  const { readData, disconnect, sendCommand } = useBluetooth();
+
+
   const refreshData = async () => {
     setIsRefreshing(true);
     try {
@@ -46,6 +55,11 @@ export default function DashboardScreen() {
 
   const handleDisconnect = async () => {
     router.replace("/"); // Điều hướng về trang chính khi ngắt kết nối
+  };
+  
+  const handleFeed = async () => {
+    // Send the FEED command to the ESP32, which will rotate the motor 180 degrees
+    await sendCommand('FEED');
   };
 
   return (
@@ -78,6 +92,8 @@ export default function DashboardScreen() {
           icon="eyedropper"
         />
       </ThemedView>
+
+      <AutoFeed onFeed={handleFeed} />
 
       <DataGraph
         title="Temperature Over Time"
