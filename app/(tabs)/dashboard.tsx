@@ -1,13 +1,11 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, ScrollView } from 'react-native';
-import { router } from 'expo-router';
-
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { TouchableOpacity } from 'react-native';
-import { useBluetooth } from '@/hooks/useBluetooth';
-import { DataCard } from '@/components/DataCard';
-import { DataGraph } from '@/components/DataGraph';
+import { useEffect, useState } from "react";
+import { StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import { router } from "expo-router";
+import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
+import { DataCard } from "@/components/DataCard";
+import { DataGraph } from "@/components/DataGraph";
+import { useMqtt } from "@/hooks/useMqtt"; // Import hook useMqtt
 
 type AquariumData = {
   temperature: number;
@@ -19,34 +17,36 @@ type AquariumData = {
 export default function DashboardScreen() {
   const [data, setData] = useState<AquariumData | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const { readData, disconnect } = useBluetooth();
+
+  // Sử dụng useMqtt hook để lấy dữ liệu từ broker MQTT
+  const rawData = useMqtt(
+    "wss://82af56b3a17f48efa9c5e0877cb7ae5a.s1.eu.hivemq.cloud:8884/mqtt", // Sử dụng WebSocket MQTT
+    "esp32/sensor/data"
+  );
+
+  // Phân tích dữ liệu nhận được từ MQTT
+  useEffect(() => {
+    if (rawData) {
+      const parsed = parseAquariumData(rawData);
+      setData(parsed);
+      console.log("Parsed Data:", parsed);
+    }
+  }, [rawData]);
 
   const refreshData = async () => {
     setIsRefreshing(true);
     try {
-      const rawData = await readData();
-      if (rawData) {
-        const parsed = parseAquariumData(rawData);
-        setData(parsed);
-      }
+      // Nếu cần thiết, bạn có thể lấy lại dữ liệu từ MQTT tại đây
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      console.error("Error refreshing data:", error);
     } finally {
       setIsRefreshing(false);
     }
   };
 
   const handleDisconnect = async () => {
-    await disconnect();
-    router.replace('/');
+    router.replace("/"); // Điều hướng về trang chính khi ngắt kết nối
   };
-
-  useEffect(() => {
-    refreshData();
-    // Set up periodic refresh every 30 seconds
-    const interval = setInterval(refreshData, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <ScrollView style={styles.container}>
@@ -66,16 +66,11 @@ export default function DashboardScreen() {
         />
         <DataCard
           title="pH Level"
-          value={data?.ph}
+          value={data?.ph || 0} // Đảm bảo pH mặc định là 0
           unit="pH"
           icon="water"
         />
-        <DataCard
-          title="TDS"
-          value={data?.tds}
-          unit="ppm"
-          icon="molecule"
-        />
+        <DataCard title="TDS" value={data?.tds} unit="ppm" icon="molecule" />
         <DataCard
           title="Turbidity"
           value={data?.turbidity}
@@ -87,58 +82,65 @@ export default function DashboardScreen() {
       <DataGraph
         title="Temperature Over Time"
         data={data ? [data.temperature] : []}
-        labels={['Now']}
+        labels={["Now"]}
         color="#ff6384"
         unit="°C"
       />
 
       <TouchableOpacity
         style={styles.disconnectButton}
-        onPress={handleDisconnect}>
+        onPress={handleDisconnect}
+      >
         <ThemedText style={styles.buttonText}>Disconnect</ThemedText>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
+// Hàm phân tích dữ liệu từ MQTT thành đối tượng AquariumData
 function parseAquariumData(rawData: string): AquariumData {
   try {
-    const pairs = rawData.split(';');
+    const pairs = rawData.split(","); // Tách chuỗi dữ liệu thành từng cặp key:value
     const data: Partial<AquariumData> = {
       temperature: 0,
       ph: 0,
       tds: 0,
-      turbidity: 0
+      turbidity: 0,
     };
 
-    pairs.forEach(pair => {
-      const [key, value] = pair.split(':');
+    pairs.forEach((pair) => {
+      const [key, value] = pair.split(":"); // Tách key và value
+
       if (!key || !value) return;
-      
-      switch (key) {
-        case 'TEMP':
-          data.temperature = parseFloat(value);
+
+      const cleanedValue = value.trim().replace(/[^\d.-]/g, ""); // Loại bỏ tất cả ký tự không phải là số hoặc dấu phân cách thập phân (C, ppm, %, ...)
+
+      switch (key.trim()) {
+        case "Temp":
+          data.temperature = parseFloat(cleanedValue);
           break;
-        case 'PH':
-          data.ph = parseFloat(value);
+        case "TDS":
+          data.tds = parseFloat(cleanedValue);
           break;
-        case 'TDS':
-          data.tds = parseInt(value, 10);
+        case "Turbidity":
+          data.turbidity = parseFloat(cleanedValue);
           break;
-        case 'TURB':
-          data.turbidity = parseInt(value, 10);
+        case "pH":
+          data.ph = parseFloat(cleanedValue);
+          break;
+        default:
           break;
       }
     });
 
-    return data as AquariumData;
+    return data as AquariumData; // Trả về dữ liệu đã được phân tích
   } catch (error) {
-    console.error('Failed to parse aquarium data:', error);
+    console.error("Failed to parse aquarium data:", error);
     return {
       temperature: 0,
       ph: 0,
       tds: 0,
-      turbidity: 0
+      turbidity: 0,
     };
   }
 }
@@ -148,9 +150,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 20,
   },
   grid: {
@@ -158,21 +160,21 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   refreshButton: {
-    backgroundColor: '#0a7ea4',
+    backgroundColor: "#0a7ea4",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
   },
   disconnectButton: {
-    backgroundColor: '#dc2626',
+    backgroundColor: "#dc2626",
     margin: 20,
     paddingVertical: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   buttonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
