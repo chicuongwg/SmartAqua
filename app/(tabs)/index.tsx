@@ -45,7 +45,7 @@ export default function HomeScreen() {
       }}
     >
       <ThemedText type="title" style={styles.pageTitle}>
-        Smart Aquarium
+        SmartAqua
       </ThemedText>
 
       <ThemedView style={styles.infoBlock}>
