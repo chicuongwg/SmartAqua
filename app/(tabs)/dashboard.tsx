@@ -11,8 +11,8 @@ import { useBluetooth } from '@/hooks/useBluetooth';
 import { DataCard } from '@/components/DataCard';
 import { DataGraph } from '@/components/DataGraph';
 import AutoFeed from '@/components/AutoFeed';
-import { useMqtt } from "@/hooks/useMqtt"; 
-import MqttMonitor from '@/components/MqttMonitor';
+import { useTaoMqtt } from "@/hooks/useTaoMqtt"; 
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
 type AquariumData = {
   temperature: number;
@@ -29,19 +29,51 @@ export default function DashboardScreen() {
   const tabBarHeight = useBottomTabBarHeight();
 
   // MQTT hook for data
-  const rawData = useMqtt(
-    "wss://82af56b3a17f48efa9c5e0877cb7ae5a.s1.eu.hivemq.cloud:8884/mqtt",
-    "esp32/sensor/data"
+  const mqttClient = useTaoMqtt(
+    "mqtt://broker.hivemq.com:1883",
+    "", // No default topic
+    {
+      clientId: `smart-aqua-dash-${Math.random().toString(16).slice(2, 8)}`,
+    }
   );
 
-  // Parse received MQTT data
+  // In your useEffect, subscribe to the topics when connected
   useEffect(() => {
-    if (rawData) {
-      const parsed = parseAquariumData(rawData);
-      setData(parsed);
-      console.log("Parsed Data:", parsed);
+    if (mqttClient.isConnected) {
+      mqttClient.subscribe('smart-aqua/temp');
+      mqttClient.subscribe('smart-aqua/ph');
+      mqttClient.subscribe('smart-aqua/tds');
+      mqttClient.subscribe('smart-aqua/turbidity');
     }
-  }, [rawData]);
+  }, [mqttClient.isConnected]);
+
+  // Update your data processing logic
+  useEffect(() => {
+    if (mqttClient.messages.length > 0) {
+      // Create a new object to hold the latest values
+      const newData: AquariumData = {
+        temperature: data?.temperature || 0,
+        ph: data?.ph || 0,
+        tds: data?.tds || 0,
+        turbidity: data?.turbidity || 0
+      };
+      
+      // Process only the latest message for each topic
+      const latestMessages = mqttClient.messages.slice(-10);
+      latestMessages.forEach(msg => {
+        const value = parseFloat(msg.message);
+        if (!isNaN(value)) {
+          if (msg.topic === 'smart-aqua/temp') newData.temperature = value;
+          else if (msg.topic === 'smart-aqua/ph') newData.ph = value;
+          else if (msg.topic === 'smart-aqua/tds') newData.tds = value;
+          else if (msg.topic === 'smart-aqua/turbidity') newData.turbidity = value;
+        }
+      });
+      
+      setData(newData);
+      console.log("Updated Data:", newData);
+    }
+  }, [mqttClient.messages]);
 
   const { readData, disconnect, sendCommand } = useBluetooth();
 
@@ -66,79 +98,91 @@ export default function DashboardScreen() {
 
   return (
     <ScrollView 
-      style={[styles.container, { paddingTop: insets.top }]} // Add top inset padding
+      style={[styles.container, { paddingTop: insets.top }]}
       contentContainerStyle={{
-        paddingBottom: tabBarHeight + 20 // Add padding for tab bar plus some extra space
+        paddingHorizontal: 20,
+        paddingBottom: tabBarHeight + 20
       }}
     >
-      <ThemedView style={styles.header}>
-        <ThemedText type="title">Dashboard</ThemedText>
-        <TouchableOpacity style={styles.refreshButton} onPress={refreshData}>
-          <ThemedText style={styles.buttonText}>Refresh</ThemedText>
-        </TouchableOpacity>
-      </ThemedView>
+      <ThemedText type="title" style={styles.pageTitle}>Dashboard</ThemedText>
+      
+      {/* Water Parameters Card */}
+      <ThemedView style={styles.sectionCard}>
+        <ThemedView style={styles.sectionHeader}>
+          <IconSymbol name="water" size={22} color="#0a7ea4" />
+          <ThemedText type="subtitle" style={styles.sectionTitle}>Water Parameters</ThemedText>
+        </ThemedView>
 
-      {/* MQTT Monitor - Moved to the top after header */}
-      <ThemedView style={styles.mqttSection}>
-        <MqttMonitor 
-          brokerUrl="wss://82af56b3a17f48efa9c5e0877cb7ae5a.s1.eu.hivemq.cloud:8884/mqtt"
-          topic="esp32/sensor/data"
-          username="dltmai" 
-          password="Dltmai1410"
-        />
-      </ThemedView>
-
-      <ThemedView style={styles.gridContainer}>
-        {/* First Row: Temperature and pH */}
-        <ThemedView style={styles.gridRow}>
-          <ThemedView style={styles.gridItem}>
-            <DataCard
-              title="Temperature"
-              value={data?.temperature}
-              unit="°C"
-              icon="thermometer"
-            />
+        <ThemedView style={styles.gridContainer}>
+          {/* First Row: Temperature and pH */}
+          <ThemedView style={styles.gridRow}>
+            <ThemedView style={styles.gridItem}>
+              <DataCard
+                title="Temperature"
+                value={data?.temperature}
+                unit="°C"
+                icon="thermometer"
+              />
+            </ThemedView>
+            <ThemedView style={styles.gridItem}>
+              <DataCard
+                title="pH Level"
+                value={data?.ph || 0}
+                unit="pH"
+                icon="water"
+              />
+            </ThemedView>
           </ThemedView>
-          <ThemedView style={styles.gridItem}>
-            <DataCard
-              title="pH Level"
-              value={data?.ph || 0}
-              unit="pH"
-              icon="water"
-            />
+          
+          {/* Second Row: TDS and Turbidity */}
+          <ThemedView style={styles.gridRow}>
+            <ThemedView style={styles.gridItem}>
+              <DataCard 
+                title="TDS" 
+                value={data?.tds} 
+                unit="ppm" 
+                icon="molecule" 
+              />
+            </ThemedView>
+            <ThemedView style={styles.gridItem}>
+              <DataCard
+                title="Turbidity"
+                value={data?.turbidity}
+                unit="NTU"
+                icon="eyedropper"
+              />
+            </ThemedView>
           </ThemedView>
         </ThemedView>
         
-        {/* Second Row: TDS and Turbidity */}
-        <ThemedView style={styles.gridRow}>
-          <ThemedView style={styles.gridItem}>
-            <DataCard 
-              title="TDS" 
-              value={data?.tds} 
-              unit="ppm" 
-              icon="molecule" 
-            />
-          </ThemedView>
-          <ThemedView style={styles.gridItem}>
-            <DataCard
-              title="Turbidity"
-              value={data?.turbidity}
-              unit="NTU"
-              icon="eyedropper"
-            />
-          </ThemedView>
-        </ThemedView>
+        <TouchableOpacity style={styles.refreshButton} onPress={refreshData}>
+          <ThemedText style={styles.buttonText}>Refresh Data</ThemedText>
+        </TouchableOpacity>
       </ThemedView>
 
-      <AutoFeed onFeed={handleFeed} />
+      {/* Feeding Controls Card */}
+      <ThemedView style={styles.sectionCard}>
+        <ThemedView style={styles.sectionHeader}>
+          <IconSymbol name="molecule" size={22} color="#0a7ea4" />
+          <ThemedText type="subtitle" style={styles.sectionTitle}>Feeding Controls</ThemedText>
+        </ThemedView>
+        <AutoFeed onFeed={handleFeed} />
+      </ThemedView>
 
-      <DataGraph
-        title="Temperature Over Time"
-        data={data ? [data.temperature] : []}
-        labels={["Now"]}
-        color="#ff6384"
-        unit="°C"
-      />
+      {/* Data Visualization Card */}
+      <ThemedView style={styles.sectionCard}>
+        <ThemedView style={styles.sectionHeader}>
+          <IconSymbol name="chart.line.uptrend.xyaxis" size={22} color="#0a7ea4" />
+          <ThemedText type="subtitle" style={styles.sectionTitle}>Parameter History</ThemedText>
+        </ThemedView>
+        <DataGraph
+          title="Temperature Over Time"
+          data={data ? [data.temperature] : []}
+          labels={["Now"]}
+          color="#ff6384"
+          unit="°C"
+        />
+      </ThemedView>
 
       <TouchableOpacity
         style={styles.disconnectButton}
@@ -153,40 +197,77 @@ export default function DashboardScreen() {
 // Your existing parseAquariumData function...
 function parseAquariumData(rawData: string): AquariumData {
   try {
-    const pairs = rawData.split(","); // Tách chuỗi dữ liệu thành từng cặp key:value
-    const data: Partial<AquariumData> = {
+    console.log("Raw data to parse:", rawData);
+    console.log("Raw data type:", typeof rawData);
+    
+    // Default values
+    const defaultData: AquariumData = {
       temperature: 0,
       ph: 0,
       tds: 0,
       turbidity: 0,
     };
-
-    pairs.forEach((pair) => {
-      const [key, value] = pair.split(":"); // Tách key và value
-
-      if (!key || !value) return;
-
-      const cleanedValue = value.trim().replace(/[^\d.-]/g, ""); // Loại bỏ tất cả ký tự không phải là số hoặc dấu phân cách thập phân (C, ppm, %, ...)
-
-      switch (key.trim()) {
-        case "Temp":
-          data.temperature = parseFloat(cleanedValue);
-          break;
-        case "TDS":
-          data.tds = parseFloat(cleanedValue);
-          break;
-        case "Turbidity":
-          data.turbidity = parseFloat(cleanedValue);
-          break;
-        case "pH":
-          data.ph = parseFloat(cleanedValue);
-          break;
-        default:
-          break;
-      }
-    });
-
-    return data as AquariumData; // Trả về dữ liệu đã được phân tích
+    
+    // Check if the data is empty or undefined
+    if (!rawData) {
+      console.log("Empty data received");
+      return defaultData;
+    }
+    
+    // Try parsing as JSON first
+    try {
+      // If it's already a JSON string
+      const jsonData = JSON.parse(rawData);
+      console.log("Successfully parsed as JSON:", jsonData);
+      
+      return {
+        temperature: parseFloat(jsonData.Temp || jsonData.temperature || '0'),
+        ph: parseFloat(jsonData.pH || jsonData.ph || '0'),
+        tds: parseFloat(jsonData.TDS || jsonData.tds || '0'),
+        turbidity: parseFloat(jsonData.Turbidity || jsonData.turbidity || '0')
+      };
+    } catch (jsonError) {
+      // Not JSON, continue with string parsing
+      console.log("Not valid JSON, trying string parsing");
+    }
+    
+    // If it's a comma-separated string format
+    if (typeof rawData === 'string' && rawData.includes(',')) {
+      const pairs = rawData.split(",");
+      const data = {...defaultData};
+      
+      pairs.forEach((pair) => {
+        const [key, value] = pair.split(":");
+        
+        if (!key || !value) return;
+        
+        const cleanedValue = value.trim().replace(/[^\d.-]/g, "");
+        
+        switch (key.trim()) {
+          case "Temp":
+            data.temperature = parseFloat(cleanedValue);
+            break;
+          case "TDS":
+            data.tds = parseFloat(cleanedValue);
+            break;
+          case "Turbidity":
+            data.turbidity = parseFloat(cleanedValue);
+            break;
+          case "pH":
+            data.ph = parseFloat(cleanedValue);
+            break;
+          default:
+            break;
+        }
+      });
+      
+      return data;
+    }
+    
+    // If it's a colon-separated string or other format
+    console.log("Unknown data format, returning default values");
+    return defaultData;
+    
   } catch (error) {
     console.error("Failed to parse aquarium data:", error);
     return {
@@ -202,40 +283,52 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
+  pageTitle: {
+    fontSize: 28,
+    marginVertical: 24,
+    textAlign: 'center',
   },
-  mqttSection: {
-    marginHorizontal: 10,
-    marginBottom: 20,  // Add space below MQTT section
+  sectionCard: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: 'rgba(0,0,0,0)',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    marginBottom: 0, // Override default margin
   },
   gridContainer: {
-    padding: 16,
-    marginTop: 10,
+    marginBottom: 16,
   },
   gridRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16, // Space between rows
+    marginBottom: 16,
   },
   gridItem: {
-    width: '48%', // Slightly less than 50% to account for spacing
+    width: '48%',
   },
   refreshButton: {
     backgroundColor: "#0a7ea4",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  disconnectButton: {
-    backgroundColor: "#dc2626",
-    margin: 20,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
+  },
+  disconnectButton: {
+    backgroundColor: "#dc2626",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 8,
   },
   buttonText: {
     color: "#fff",

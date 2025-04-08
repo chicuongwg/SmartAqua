@@ -9,9 +9,12 @@ interface Props {
   topic: string;
   username?: string;
   password?: string;
+  compact?: boolean; // Add this prop
 }
 
-export default function MqttMonitor({ brokerUrl, topic, username, password }: Props) {
+export default function MqttMonitor({ 
+  brokerUrl, topic, username, password, compact = false 
+}: Props) {
   const {
     isConnected,
     isConnecting,
@@ -45,53 +48,64 @@ export default function MqttMonitor({ brokerUrl, topic, username, password }: Pr
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedView style={styles.statusContainer}>
-        <ThemedText type="subtitle">MQTT Status</ThemedText>
-        <ThemedView style={[styles.statusIndicator, { 
-          backgroundColor: isConnected ? '#22c55e' : isConnecting ? '#f59e0b' : '#dc2626' 
-        }]} />
-        <ThemedText>
-          {isConnected ? 'Connected' : isConnecting ? 'Connecting...' : 'Disconnected'}
-        </ThemedText>
-        {error && (
-          <ThemedText style={styles.errorText}>
-            Error: {error.message}
-          </ThemedText>
-        )}
-      </ThemedView>
+      {/* If not compact, show the header and controls */}
+      {!compact && (
+        <>
+          <ThemedView style={styles.statusContainer}>
+            <ThemedText type="subtitle">MQTT Status</ThemedText>
+            <ThemedView style={[styles.statusIndicator, { 
+              backgroundColor: isConnected ? '#22c55e' : isConnecting ? '#f59e0b' : '#dc2626' 
+            }]} />
+            <ThemedText>
+              {isConnected ? 'Connected' : isConnecting ? 'Connecting...' : 'Disconnected'}
+            </ThemedText>
+            {error && (
+              <ThemedText style={styles.errorText}>
+                Error: {error.message}
+              </ThemedText>
+            )}
+          </ThemedView>
+          
+          <ThemedView style={styles.actionsContainer}>
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: '#0a7ea4' }]} 
+              onPress={isConnected ? disconnect : connect}
+            >
+              <ThemedText style={styles.buttonText}>
+                {isConnected ? 'Disconnect' : 'Connect'}
+              </ThemedText>
+            </TouchableOpacity>
 
-      <ThemedView style={styles.actionsContainer}>
-        <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: '#0a7ea4' }]} 
-          onPress={isConnected ? disconnect : connect}
-        >
-          <ThemedText style={styles.buttonText}>
-            {isConnected ? 'Disconnect' : 'Connect'}
-          </ThemedText>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.actionButton, { 
-            backgroundColor: isConnected ? '#22c55e' : '#9ca3af' 
-          }]}
-          disabled={!isConnected}
-          onPress={sendTestMessage}
-        >
-          <ThemedText style={styles.buttonText}>
-            Send Test Message
-          </ThemedText>
-        </TouchableOpacity>
-      </ThemedView>
+            <TouchableOpacity 
+              style={[styles.actionButton, { 
+                backgroundColor: isConnected ? '#22c55e' : '#9ca3af' 
+              }]}
+              disabled={!isConnected}
+              onPress={sendTestMessage}
+            >
+              <ThemedText style={styles.buttonText}>
+                Send Test Message
+              </ThemedText>
+            </TouchableOpacity>
+          </ThemedView>
+        </>
+      )}
 
       <ThemedView style={styles.messagesContainer}>
-        <ThemedText type="subtitle">Messages ({topic})</ThemedText>
+        {compact ? null : <ThemedText type="subtitle">Messages ({topic})</ThemedText>}
         {recentMessages.length === 0 ? (
           <ThemedText style={styles.noMessagesText}>
             No messages received yet
           </ThemedText>
         ) : (
-          <ScrollView style={styles.messagesScrollView}>
-            {recentMessages.map((msg, index) => (
+          <ScrollView 
+            style={[
+              styles.messagesScrollView, 
+              compact && { maxHeight: 120 } // Smaller height in compact mode
+            ]}
+          >
+            {/* Show fewer messages in compact mode */}
+            {recentMessages.slice(compact ? -5 : -20).map((msg, index) => (
               <ThemedView key={index} style={styles.messageItem}>
                 <ThemedText style={styles.messageTime}>
                   {new Date(msg.timestamp).toLocaleTimeString()}

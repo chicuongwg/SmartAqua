@@ -161,27 +161,27 @@ export default function AutoFeed({ onFeed }: Props) {
             
             {Platform.OS === 'ios' ? (
               <DateTimePicker
-                value={selectedScheduleIndex !== null ? 
+                value={(selectedScheduleIndex !== null && feedSchedule[selectedScheduleIndex]) ? 
                   feedSchedule[selectedScheduleIndex].time : new Date()}
                 mode="time"
                 is24Hour={true}
                 display="spinner"
                 onChange={(event: any, date?: Date) => {
-                  if (date && selectedScheduleIndex !== null) {
+                  if (date && selectedScheduleIndex !== null && feedSchedule[selectedScheduleIndex]) {
                     updateSchedule(selectedScheduleIndex, { time: date });
                   }
                 }}
               />
             ) : (
               <DateTimePicker
-                value={selectedScheduleIndex !== null ? 
+                value={(selectedScheduleIndex !== null && feedSchedule[selectedScheduleIndex]) ? 
                   feedSchedule[selectedScheduleIndex].time : new Date()}
                 mode="time"
                 is24Hour={true}
                 display="default"
                 onChange={(event: DateTimePickerEvent, date?: Date) => {
                   setScheduleModalVisible(false);
-                  if (event.type === 'set' && date && selectedScheduleIndex !== null) {
+                  if (event.type === 'set' && date && selectedScheduleIndex !== null && feedSchedule[selectedScheduleIndex]) {
                     updateSchedule(selectedScheduleIndex, { time: date });
                   }
                 }}
