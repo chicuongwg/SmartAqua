@@ -1,7 +1,8 @@
-
 import { useEffect, useState } from 'react';
 import { StyleSheet, ScrollView } from 'react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -10,7 +11,8 @@ import { useBluetooth } from '@/hooks/useBluetooth';
 import { DataCard } from '@/components/DataCard';
 import { DataGraph } from '@/components/DataGraph';
 import AutoFeed from '@/components/AutoFeed';
-import { useMqtt } from "@/hooks/useMqtt"; // Import hook useMqtt
+import { useMqtt } from "@/hooks/useMqtt"; 
+import MqttMonitor from '@/components/MqttMonitor';
 
 type AquariumData = {
   temperature: number;
@@ -23,14 +25,16 @@ export default function DashboardScreen() {
   const [data, setData] = useState<AquariumData | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
 
-  // Sử dụng useMqtt hook để lấy dữ liệu từ broker MQTT
+  // MQTT hook for data
   const rawData = useMqtt(
-    "wss://82af56b3a17f48efa9c5e0877cb7ae5a.s1.eu.hivemq.cloud:8884/mqtt", // Sử dụng WebSocket MQTT
+    "wss://82af56b3a17f48efa9c5e0877cb7ae5a.s1.eu.hivemq.cloud:8884/mqtt",
     "esp32/sensor/data"
   );
 
-  // Phân tích dữ liệu nhận được từ MQTT
+  // Parse received MQTT data
   useEffect(() => {
     if (rawData) {
       const parsed = parseAquariumData(rawData);
@@ -41,11 +45,10 @@ export default function DashboardScreen() {
 
   const { readData, disconnect, sendCommand } = useBluetooth();
 
-
   const refreshData = async () => {
     setIsRefreshing(true);
     try {
-      // Nếu cần thiết, bạn có thể lấy lại dữ liệu từ MQTT tại đây
+      // If needed, you can refresh data from MQTT here
     } catch (error) {
       console.error("Error refreshing data:", error);
     } finally {
@@ -54,16 +57,20 @@ export default function DashboardScreen() {
   };
 
   const handleDisconnect = async () => {
-    router.replace("/"); // Điều hướng về trang chính khi ngắt kết nối
+    router.replace("/");
   };
   
   const handleFeed = async () => {
-    // Send the FEED command to the ESP32, which will rotate the motor 180 degrees
     await sendCommand('FEED');
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={[styles.container, { paddingTop: insets.top }]} // Add top inset padding
+      contentContainerStyle={{
+        paddingBottom: tabBarHeight + 20 // Add padding for tab bar plus some extra space
+      }}
+    >
       <ThemedView style={styles.header}>
         <ThemedText type="title">Dashboard</ThemedText>
         <TouchableOpacity style={styles.refreshButton} onPress={refreshData}>
@@ -71,26 +78,56 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </ThemedView>
 
-      <ThemedView style={styles.grid}>
-        <DataCard
-          title="Temperature"
-          value={data?.temperature}
-          unit="°C"
-          icon="thermometer"
+      {/* MQTT Monitor - Moved to the top after header */}
+      <ThemedView style={styles.mqttSection}>
+        <MqttMonitor 
+          brokerUrl="wss://82af56b3a17f48efa9c5e0877cb7ae5a.s1.eu.hivemq.cloud:8884/mqtt"
+          topic="esp32/sensor/data"
+          username="dltmai" 
+          password="Dltmai1410"
         />
-        <DataCard
-          title="pH Level"
-          value={data?.ph || 0} // Đảm bảo pH mặc định là 0
-          unit="pH"
-          icon="water"
-        />
-        <DataCard title="TDS" value={data?.tds} unit="ppm" icon="molecule" />
-        <DataCard
-          title="Turbidity"
-          value={data?.turbidity}
-          unit="NTU"
-          icon="eyedropper"
-        />
+      </ThemedView>
+
+      <ThemedView style={styles.gridContainer}>
+        {/* First Row: Temperature and pH */}
+        <ThemedView style={styles.gridRow}>
+          <ThemedView style={styles.gridItem}>
+            <DataCard
+              title="Temperature"
+              value={data?.temperature}
+              unit="°C"
+              icon="thermometer"
+            />
+          </ThemedView>
+          <ThemedView style={styles.gridItem}>
+            <DataCard
+              title="pH Level"
+              value={data?.ph || 0}
+              unit="pH"
+              icon="water"
+            />
+          </ThemedView>
+        </ThemedView>
+        
+        {/* Second Row: TDS and Turbidity */}
+        <ThemedView style={styles.gridRow}>
+          <ThemedView style={styles.gridItem}>
+            <DataCard 
+              title="TDS" 
+              value={data?.tds} 
+              unit="ppm" 
+              icon="molecule" 
+            />
+          </ThemedView>
+          <ThemedView style={styles.gridItem}>
+            <DataCard
+              title="Turbidity"
+              value={data?.turbidity}
+              unit="NTU"
+              icon="eyedropper"
+            />
+          </ThemedView>
+        </ThemedView>
       </ThemedView>
 
       <AutoFeed onFeed={handleFeed} />
@@ -113,7 +150,7 @@ export default function DashboardScreen() {
   );
 }
 
-// Hàm phân tích dữ liệu từ MQTT thành đối tượng AquariumData
+// Your existing parseAquariumData function...
 function parseAquariumData(rawData: string): AquariumData {
   try {
     const pairs = rawData.split(","); // Tách chuỗi dữ liệu thành từng cặp key:value
@@ -171,9 +208,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
   },
-  grid: {
+  mqttSection: {
+    marginHorizontal: 10,
+    marginBottom: 20,  // Add space below MQTT section
+  },
+  gridContainer: {
     padding: 16,
-    gap: 16,
+    marginTop: 10,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16, // Space between rows
+  },
+  gridItem: {
+    width: '48%', // Slightly less than 50% to account for spacing
   },
   refreshButton: {
     backgroundColor: "#0a7ea4",

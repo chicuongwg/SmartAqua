@@ -2,7 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "moduleResolution": "bundler", // Changed from node16 as it's more compatible with Expo
+    "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "allowArbitraryExtensions": true,
     "paths": {
