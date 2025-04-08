@@ -38,9 +38,11 @@ type PondParameters = {
 };
 
 // Comparison result
+type SeverityLevel = "good" | "warning" | "danger";
+
 type ComparisonResult = {
   parameter: string;
-  isMatch: boolean;
+  severity: SeverityLevel;
   message: string;
 };
 
@@ -195,10 +197,10 @@ export default function FishPondDashboard() {
   const compareParameters = (fish: FishTemplate) => {
     const results: ComparisonResult[] = [];
 
-    // Compare water type
+    // Compare water type - binary match/no match (no middle ground for water type)
     results.push({
       parameter: "Water Type",
-      isMatch: fish.waterType === pondParameters.waterType,
+      severity: fish.waterType === pondParameters.waterType ? "good" : "danger",
       message:
         fish.waterType === pondParameters.waterType
           ? "Water type is suitable"
@@ -209,60 +211,112 @@ export default function FishPondDashboard() {
             )}`,
     });
 
-    // Compare pH
+    // Compare pH - 3 levels
     const phDifference = Math.abs(fish.ph - pondParameters.ph);
+    let phSeverity: SeverityLevel = "good";
+    let phMessage = "pH level is suitable";
+
+    if (phDifference > 0.5 && phDifference <= 1.0) {
+      phSeverity = "warning";
+      phMessage = `${fish.name} prefers pH ${
+        fish.ph
+      }, current pond is ${pondParameters.ph.toFixed(1)} (consider adjusting)`;
+    } else if (phDifference > 1.0) {
+      phSeverity = "danger";
+      phMessage = `${fish.name} requires pH ${
+        fish.ph
+      }, current pond is ${pondParameters.ph.toFixed(1)} (critical mismatch)`;
+    }
+
     results.push({
       parameter: "pH",
-      isMatch: phDifference <= 0.5,
-      message:
-        phDifference <= 0.5
-          ? "pH level is suitable"
-          : `${fish.name} requires pH ${
-              fish.ph
-            }, current pond is ${pondParameters.ph.toFixed(1)}`,
+      severity: phSeverity,
+      message: phMessage,
     });
 
-    // Compare temperature
+    // Compare temperature - 3 levels
     const tempDifference = Math.abs(
       fish.temperature - pondParameters.temperature
     );
+    let tempSeverity: SeverityLevel = "good";
+    let tempMessage = "Temperature is suitable";
+
+    if (tempDifference > 3 && tempDifference <= 5) {
+      tempSeverity = "warning";
+      tempMessage = `${fish.name} prefers temperature of ${
+        fish.temperature
+      }°C, current pond is ${pondParameters.temperature.toFixed(
+        1
+      )}°C (consider adjusting)`;
+    } else if (tempDifference > 5) {
+      tempSeverity = "danger";
+      tempMessage = `${fish.name} requires temperature of ${
+        fish.temperature
+      }°C, current pond is ${pondParameters.temperature.toFixed(
+        1
+      )}°C (critical mismatch)`;
+    }
+
     results.push({
       parameter: "Temperature",
-      isMatch: tempDifference <= 3,
-      message:
-        tempDifference <= 3
-          ? "Temperature is suitable"
-          : `${fish.name} requires temperature of ${
-              fish.temperature
-            }°C, current pond is ${pondParameters.temperature.toFixed(1)}°C`,
+      severity: tempSeverity,
+      message: tempMessage,
     });
 
-    // Compare turbidity
+    // Compare turbidity - 3 levels
     const turbidityDifference = Math.abs(
       fish.turbidity - pondParameters.turbidity
     );
+    let turbSeverity: SeverityLevel = "good";
+    let turbMessage = "Turbidity is suitable";
+
+    if (turbidityDifference > 5 && turbidityDifference <= 10) {
+      turbSeverity = "warning";
+      turbMessage = `${fish.name} prefers turbidity of ${
+        fish.turbidity
+      }%, current pond is ${pondParameters.turbidity.toFixed(
+        1
+      )}% (consider adjusting)`;
+    } else if (turbidityDifference > 10) {
+      turbSeverity = "danger";
+      turbMessage = `${fish.name} requires turbidity of ${
+        fish.turbidity
+      }%, current pond is ${pondParameters.turbidity.toFixed(
+        1
+      )}% (critical mismatch)`;
+    }
+
     results.push({
       parameter: "Turbidity",
-      isMatch: turbidityDifference <= 5,
-      message:
-        turbidityDifference <= 5
-          ? "Turbidity is suitable"
-          : `${fish.name} requires turbidity of ${
-              fish.turbidity
-            }%, current pond is ${pondParameters.turbidity.toFixed(1)}%`,
+      severity: turbSeverity,
+      message: turbMessage,
     });
 
-    // Compare TDS
+    // Compare TDS - 3 levels
     const tdsDifference = Math.abs(fish.tds - pondParameters.tds);
+    let tdsSeverity: SeverityLevel = "good";
+    let tdsMessage = "TDS level is suitable";
+
+    if (tdsDifference > 50 && tdsDifference <= 100) {
+      tdsSeverity = "warning";
+      tdsMessage = `${fish.name} prefers TDS of ${
+        fish.tds
+      } ppm, current pond is ${pondParameters.tds.toFixed(
+        0
+      )} ppm (consider adjusting)`;
+    } else if (tdsDifference > 100) {
+      tdsSeverity = "danger";
+      tdsMessage = `${fish.name} requires TDS of ${
+        fish.tds
+      } ppm, current pond is ${pondParameters.tds.toFixed(
+        0
+      )} ppm (critical mismatch)`;
+    }
+
     results.push({
       parameter: "TDS",
-      isMatch: tdsDifference <= 50, // 50 ppm tolerance
-      message:
-        tdsDifference <= 50
-          ? "TDS level is suitable"
-          : `${fish.name} requires TDS of ${
-              fish.tds
-            } ppm, current pond is ${pondParameters.tds.toFixed(0)} ppm`,
+      severity: tdsSeverity,
+      message: tdsMessage,
     });
 
     setComparisonResults(results);
@@ -338,7 +392,7 @@ export default function FishPondDashboard() {
           <ThemedView style={styles.cardHeader}>
             <IconSymbol name="water" size={20} color="#0a7ea4" />
             <ThemedText type="subtitle">
-              Standard parameters for {selectedFish.name}
+              Params for {selectedFish.name}
             </ThemedText>
           </ThemedView>
 
@@ -459,13 +513,13 @@ export default function FishPondDashboard() {
               key={index}
               style={[
                 styles.comparisonItem,
-                result.isMatch
+                result.severity === "good"
                   ? styles.matchingParameter
                   : styles.mismatchParameter,
               ]}
             >
               <ThemedView style={styles.comparisonStatus}>
-                {result.isMatch ? (
+                {result.severity === "good" ? (
                   <IconSymbol name="water" size={16} color="#22c55e" />
                 ) : (
                   <IconSymbol name="water" size={16} color="#dc2626" />
@@ -478,9 +532,9 @@ export default function FishPondDashboard() {
                 <ThemedText
                   style={{
                     ...styles.comparisonMessage,
-                    ...(result.isMatch
+                    ...(result.severity === "good"
                       ? styles.matchingText
-                      : styles.warningText),
+                      : styles.mismatchText),
                   }}
                 >
                   {result.message}
@@ -558,7 +612,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: "#e5e5e5",
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    backgroundColor: "rgba(112, 182, 189, 0.5)",
     padding: 16,
     marginBottom: 16,
   },
@@ -579,7 +633,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: 8,
     borderRadius: BorderRadius.sm,
-    backgroundColor: "rgba(0, 0, 0, 0.02)",
+    backgroundColor: "rgba(0, 0, 0, 0)",
   },
   parameterLabel: {
     fontWeight: "500",
@@ -594,7 +648,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: "#e5e5e5",
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0)",
     padding: 16,
   },
   comparisonItem: {
@@ -631,7 +685,31 @@ const styles = StyleSheet.create({
   matchingText: {
     color: "#22c55e",
   },
+  mismatchText: {
+    color: "#dc2626",
+  },
+  goodParameter: {
+    backgroundColor: "rgba(34, 197, 94, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.2)",
+  },
+  warningParameter: {
+    backgroundColor: "rgba(245, 158, 11, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.2)",
+  },
+  dangerParameter: {
+    backgroundColor: "rgba(220, 38, 38, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(220, 38, 38, 0.2)",
+  },
+  goodText: {
+    color: "#22c55e",
+  },
   warningText: {
+    color: "#f59e0b",
+  },
+  dangerText: {
     color: "#dc2626",
   },
 });
