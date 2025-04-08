@@ -181,7 +181,7 @@ export default function HomeScreen() {
       </ThemedView>
 
       <ThemedText style={{ textAlign: "center", marginTop: 24 }}>
-        Developed by{" gleammy & dltmai"}
+        Developed by{" chicuongwg & dltmai"}
         <br />
         version 1.0.0
       </ThemedText>
