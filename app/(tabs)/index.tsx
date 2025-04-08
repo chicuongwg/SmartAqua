@@ -192,9 +192,7 @@ const styles = StyleSheet.create({
     marginVertical: Layout.margin.section,
     textAlign: "center",
   },
-  infoBlock: {
-    // Sử dụng card nên không cần nhiều styling ở đây
-  },
+  infoBlock: {},
   statusSection: {
     padding: 16,
     backgroundColor: "rgba(0,0,0,0)",

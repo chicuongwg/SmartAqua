@@ -13,6 +13,7 @@ import { DataGraph } from "@/components/DataGraph";
 import AutoFeed from "@/components/AutoFeed";
 import { useTaoMqtt } from "@/hooks/useTaoMqtt";
 import { IconSymbol } from "@/components/ui/IconSymbol";
+import FishPondDashboard from "@/components/FishPondDashboard";
 
 type AquariumData = {
   temperature: number;

@@ -33,6 +33,17 @@ export default function TabLayout() {
           ),
         }}
       />
+
+      <Tabs.Screen
+        name="mytank"
+        options={{
+          title: "My Tank",
+          tabBarIcon: ({ color }: { color: string }) => (
+            <IconSymbol size={28} name="house.fill" color={color} />
+          ),
+        }}
+      />
+
       <Tabs.Screen
         name="dashboard"
         options={{
