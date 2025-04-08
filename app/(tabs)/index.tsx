@@ -10,11 +10,10 @@ import { ThemedView } from "@/components/ThemedView";
 import { TouchableOpacity } from "@/components/TouchableOpacity";
 import MqttMonitor from "@/components/MqttMonitor";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-
-// Remove unused import
-// import { useTaoMqtt } from "@/hooks/useTaoMqtt";
-// Remove unused MqttSimulator import
-// import MqttSimulator from '@/components/MqttSimulator';
+import Button from "@/components/Button";
+import ScreenContainer from "@/components/ScreenContainer";
+import { Colors, Spacing, BorderRadius } from "@/constants/Colors";
+import Layout from "@/constants/Layout";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -37,18 +36,12 @@ export default function HomeScreen() {
   }, [scanForDevices, connectToDevice, router]);
 
   return (
-    <ScrollView
-      style={[styles.container, { paddingTop: insets.top }]}
-      contentContainerStyle={{
-        paddingHorizontal: 20,
-        paddingBottom: tabBarHeight + 20,
-      }}
-    >
+    <ScreenContainer>
       <ThemedText type="title" style={styles.pageTitle}>
         SmartAqua
       </ThemedText>
 
-      <ThemedView style={styles.infoBlock}>
+      <ThemedView card style={styles.infoBlock}>
         <ThemedView style={styles.statusSection}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             System Status
@@ -109,7 +102,7 @@ export default function HomeScreen() {
             MQTT Sensor Data
           </ThemedText>
           <MqttMonitor
-            brokerUrl="wss://broker.hivemq.com:1883/mqtt"
+            brokerUrl="mqtt://broker.hivemq.com:1883"
             topic="smart-aqua/data"
             compact={true}
           />
@@ -180,31 +173,27 @@ export default function HomeScreen() {
         </ThemedView>
       </ThemedView>
 
-      <ThemedText style={{ textAlign: "center", marginTop: 24 }}>
-        Developed by{" chicuongwg & dltmai"}
-        <br />
-        version 1.0.0
-      </ThemedText>
-    </ScrollView>
+      <ThemedView style={styles.footer}>
+        <ThemedText style={styles.footerText}>
+          Developed by{" "}
+          <ThemedText style={styles.footerHighlight}>
+            chicuongwg & dltmai
+          </ThemedText>
+        </ThemedText>
+        <ThemedText style={styles.versionText}>Version 1.0.0</ThemedText>
+      </ThemedView>
+    </ScreenContainer>
   );
 }
 
 // Styles
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   pageTitle: {
-    fontSize: 28,
-    marginVertical: 24,
+    marginVertical: Layout.margin.section,
     textAlign: "center",
   },
   infoBlock: {
-    marginBottom: 24,
-    borderRadius: 12,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
+    // Sử dụng card nên không cần nhiều styling ở đây
   },
   statusSection: {
     padding: 16,
@@ -287,5 +276,21 @@ const styles = StyleSheet.create({
   },
   featureDescription: {
     opacity: 0.8,
+  },
+  footer: {
+    marginTop: 16,
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  footerText: {
+    fontSize: 14,
+  },
+  footerHighlight: {
+    fontWeight: "600",
+  },
+  versionText: {
+    fontSize: 12,
+    opacity: 0.7,
+    marginTop: 4,
   },
 });

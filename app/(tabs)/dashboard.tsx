@@ -82,7 +82,12 @@ export default function DashboardScreen() {
   };
 
   const handleFeed = async () => {
-    await sendCommand("FEED");
+    try {
+      await sendCommand("FEED");
+    } catch (error) {
+      console.error("Failed to send feed command:", error);
+      // Consider adding user feedback here
+    }
   };
 
   return (
@@ -120,7 +125,7 @@ export default function DashboardScreen() {
                 title="pH Level"
                 value={data?.ph || 0}
                 unit="pH"
-                icon="eyedropper"
+                icon="water"
               />
             </ThemedView>
           </ThemedView>
@@ -131,7 +136,7 @@ export default function DashboardScreen() {
                 title="TDS"
                 value={data?.tds}
                 unit="ppm"
-                icon="eyedropper"
+                icon="molecule"
               />
             </ThemedView>
             <ThemedView style={styles.gridItem}>
@@ -150,7 +155,20 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </ThemedView>
 
-      <AutoFeed onFeed={handleFeed} />
+      <ThemedView style={styles.sectionCard}>
+        <ThemedView style={styles.sectionHeader}>
+          <IconSymbol
+            name="chart.line.uptrend.xyaxis"
+            size={22}
+            color="#0a7ea4"
+          />
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            Feeding Controls
+          </ThemedText>
+        </ThemedView>
+
+        <AutoFeed onFeed={handleFeed} />
+      </ThemedView>
 
       <ThemedView style={styles.sectionCard}>
         <ThemedView style={styles.sectionHeader}>

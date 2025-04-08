@@ -1,7 +1,7 @@
-import React from 'react';
-import { Dimensions, StyleSheet, View } from 'react-native';
-import { ThemedView } from './ThemedView';
-import { ThemedText } from './ThemedText';
+import React from "react";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { ThemedView } from "./ThemedView";
+import { ThemedText } from "./ThemedText";
 
 type Props = {
   title: string;
@@ -12,19 +12,27 @@ type Props = {
 };
 
 export default function DataGraph({ title, data, labels, color, unit }: Props) {
-  // Placeholder component - in a real app, you'd import and use a charting library
-  // like react-native-chart-kit, react-native-svg-charts, or victory-native
+  // Use useWindowDimensions instead of hardcoded width
+  const { width } = useWindowDimensions();
+
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="subtitle">{title}</ThemedText>
-      <View style={[styles.graphPlaceholder, { backgroundColor: color + '20' }]}>
+
+      {/* Remove the fixed width and allow it to flex within its parent */}
+      <View
+        style={[styles.graphPlaceholder, { backgroundColor: color + "20" }]}
+      >
         <ThemedText style={styles.placeholderText}>
           Graph visualization would be displayed here
         </ThemedText>
         <ThemedText style={styles.placeholderSubtext}>
-          {data.length > 0 ? `Latest value: ${data[data.length - 1]} ${unit}` : 'No data available'}
+          {data.length > 0
+            ? `Latest value: ${data[data.length - 1]} ${unit}`
+            : "No data available"}
         </ThemedText>
       </View>
+
       <ThemedText style={styles.unitText}>{`Unit: ${unit}`}</ThemedText>
     </ThemedView>
   );
@@ -36,22 +44,23 @@ export { DataGraph };
 const styles = StyleSheet.create({
   container: {
     marginVertical: 8,
-    padding: 16,
+    padding: 0, // Remove padding here to prevent double-padding
     borderRadius: 16,
-    alignItems: 'center',
+    alignItems: "center",
+    width: "100%", // Ensure container takes full width of parent
   },
   graphPlaceholder: {
     marginVertical: 8,
     borderRadius: 16,
-    width: Dimensions.get('window').width - 64,
+    width: "100%", // Use percentage instead of fixed width
     height: 200,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 16,
   },
   placeholderText: {
-    textAlign: 'center',
-    fontStyle: 'italic',
+    textAlign: "center",
+    fontStyle: "italic",
   },
   placeholderSubtext: {
     marginTop: 8,
@@ -60,7 +69,7 @@ const styles = StyleSheet.create({
   unitText: {
     fontSize: 12,
     opacity: 0.7,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     marginTop: 4,
-  }
+  },
 });

@@ -45,11 +45,17 @@ export default function AutoFeed({ onFeed }: Props) {
   };
 
   const addSchedule = () => {
+    // Add the new schedule
     const newSchedule: FeedSchedule = {
       time: new Date(),
       enabled: true,
     };
+    const newIndex = feedSchedule.length;
     setFeedSchedule([...feedSchedule, newSchedule]);
+
+    // Immediately open the editor for the new schedule
+    setSelectedScheduleIndex(newIndex);
+    setScheduleModalVisible(true);
   };
 
   const removeSchedule = (index: number) => {
@@ -112,14 +118,8 @@ export default function AutoFeed({ onFeed }: Props) {
         </ThemedText>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.scheduleButton}
-        onPress={() => {
-          setSelectedScheduleIndex(null);
-          setScheduleModalVisible(true);
-        }}
-      >
-        <ThemedText style={styles.buttonText}>Schedule Feeding</ThemedText>
+      <TouchableOpacity style={styles.scheduleButton} onPress={addSchedule}>
+        <ThemedText style={styles.buttonText}>Add Scheduled Feeding</ThemedText>
       </TouchableOpacity>
 
       {/* Schedules List */}
@@ -156,17 +156,6 @@ export default function AutoFeed({ onFeed }: Props) {
             </TouchableOpacity>
           </ThemedView>
         ))}
-
-        {feedSchedule.length < 5 && (
-          <TouchableOpacity
-            onPress={addSchedule}
-            style={styles.addScheduleButton}
-          >
-            <ThemedText style={styles.addScheduleText}>
-              + Add Schedule
-            </ThemedText>
-          </TouchableOpacity>
-        )}
       </ThemedView>
 
       {/* Schedule Modal */}
@@ -184,7 +173,8 @@ export default function AutoFeed({ onFeed }: Props) {
               <DateTimePicker
                 value={
                   selectedScheduleIndex !== null &&
-                  feedSchedule[selectedScheduleIndex]
+                  selectedScheduleIndex >= 0 &&
+                  selectedScheduleIndex < feedSchedule.length
                     ? feedSchedule[selectedScheduleIndex].time
                     : new Date()
                 }
@@ -195,7 +185,8 @@ export default function AutoFeed({ onFeed }: Props) {
                   if (
                     date &&
                     selectedScheduleIndex !== null &&
-                    feedSchedule[selectedScheduleIndex]
+                    selectedScheduleIndex >= 0 &&
+                    selectedScheduleIndex < feedSchedule.length
                   ) {
                     updateSchedule(selectedScheduleIndex, { time: date });
                   }
