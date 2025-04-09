@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, ScrollView } from "react-native";
+import { StyleSheet, ScrollView, Alert } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -7,13 +7,13 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { TouchableOpacity } from "react-native";
-import { useBluetooth } from "@/hooks/useBluetooth";
 import { DataCard } from "@/components/DataCard";
 import { DataGraph } from "@/components/DataGraph";
 import AutoFeed from "@/components/AutoFeed";
 import { useTaoMqtt } from "@/hooks/useTaoMqtt";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import FishPondDashboard from "@/components/FishPondDashboard";
+import MqttConfigPanel from "@/components/MqttConfigPanel";
+import MqttDebugPanel from "@/components/MqttDebugPanel";
 
 type AquariumData = {
   temperature: number;
@@ -55,21 +55,45 @@ export default function DashboardScreen() {
 
       const latestMessages = mqttClient.messages.slice(-10);
       latestMessages.forEach((msg) => {
-        const value = parseFloat(msg.message);
-        if (!isNaN(value)) {
-          if (msg.topic === "smart-aqua/temp") newData.temperature = value;
-          else if (msg.topic === "smart-aqua/ph") newData.ph = value;
-          else if (msg.topic === "smart-aqua/tds") newData.tds = value;
-          else if (msg.topic === "smart-aqua/turbidity")
-            newData.turbidity = value;
+        try {
+          // Try to parse as JSON first
+          const jsonData = JSON.parse(msg.message);
+
+          // Handle JSON format - adjust these properties based on your ESP32's JSON structure
+          if (msg.topic === "smart-aqua/temp" && jsonData.value !== undefined) {
+            newData.temperature = parseFloat(jsonData.value);
+          } else if (
+            msg.topic === "smart-aqua/ph" &&
+            jsonData.value !== undefined
+          ) {
+            newData.ph = parseFloat(jsonData.value);
+          } else if (
+            msg.topic === "smart-aqua/tds" &&
+            jsonData.value !== undefined
+          ) {
+            newData.tds = parseFloat(jsonData.value);
+          } else if (
+            msg.topic === "smart-aqua/turbidity" &&
+            jsonData.value !== undefined
+          ) {
+            newData.turbidity = parseFloat(jsonData.value);
+          }
+        } catch (e) {
+          // Fallback to plain string parsing if JSON fails
+          const value = parseFloat(msg.message);
+          if (!isNaN(value)) {
+            if (msg.topic === "smart-aqua/temp") newData.temperature = value;
+            else if (msg.topic === "smart-aqua/ph") newData.ph = value;
+            else if (msg.topic === "smart-aqua/tds") newData.tds = value;
+            else if (msg.topic === "smart-aqua/turbidity")
+              newData.turbidity = value;
+          }
         }
       });
 
       setData(newData);
     }
   }, [mqttClient.messages]);
-
-  const { sendCommand } = useBluetooth();
 
   const refreshData = () => {
     // Force reconnect MQTT if needed
@@ -82,12 +106,18 @@ export default function DashboardScreen() {
     router.replace("/");
   };
 
+  // Replace Bluetooth feeding with MQTT command
   const handleFeed = async () => {
     try {
-      await sendCommand("FEED");
+      if (mqttClient.isConnected) {
+        mqttClient.publish("smart-aqua/commands/feed", "FEED");
+        Alert.alert("Success", "Feed command sent via MQTT");
+      } else {
+        Alert.alert("Error", "MQTT not connected");
+      }
     } catch (error) {
       console.error("Failed to send feed command:", error);
-      // Consider adding user feedback here
+      Alert.alert("Error", "Failed to send feed command");
     }
   };
 
@@ -188,6 +218,33 @@ export default function DashboardScreen() {
           labels={["Now"]}
           color="#ff6384"
           unit="°C"
+        />
+      </ThemedView>
+
+      <ThemedView style={styles.sectionCard}>
+        <ThemedView style={styles.sectionHeader}>
+          <IconSymbol name="paperplane.fill" size={22} color="#0a7ea4" />
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            MQTT Configuration
+          </ThemedText>
+        </ThemedView>
+        <MqttConfigPanel mqttClient={mqttClient} />
+      </ThemedView>
+
+      <ThemedView style={styles.sectionCard}>
+        <ThemedView style={styles.sectionHeader}>
+          <IconSymbol name="paperplane.fill" size={22} color="#0a7ea4" />
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            MQTT Debug
+          </ThemedText>
+        </ThemedView>
+        <MqttDebugPanel
+          mqttClient={{
+            ...mqttClient,
+            error: mqttClient.error
+              ? { message: mqttClient.error.message }
+              : undefined,
+          }}
         />
       </ThemedView>
 

@@ -143,14 +143,39 @@ export default function FishPondDashboard() {
 
       const latestMessages = mqttClient.messages.slice(-10);
       latestMessages.forEach((msg) => {
-        const value = parseFloat(msg.message);
-        if (!isNaN(value)) {
-          if (msg.topic === "smart-aqua/temp") newData.temperature = value;
-          else if (msg.topic === "smart-aqua/ph") newData.ph = value;
-          else if (msg.topic === "smart-aqua/tds")
-            newData.tds = value; // Add this
-          else if (msg.topic === "smart-aqua/turbidity")
-            newData.turbidity = value;
+        try {
+          // Try to parse as JSON first
+          const jsonData = JSON.parse(msg.message);
+
+          // Handle JSON format
+          if (msg.topic === "smart-aqua/temp" && jsonData.value !== undefined) {
+            newData.temperature = parseFloat(jsonData.value);
+          } else if (
+            msg.topic === "smart-aqua/ph" &&
+            jsonData.value !== undefined
+          ) {
+            newData.ph = parseFloat(jsonData.value);
+          } else if (
+            msg.topic === "smart-aqua/tds" &&
+            jsonData.value !== undefined
+          ) {
+            newData.tds = parseFloat(jsonData.value);
+          } else if (
+            msg.topic === "smart-aqua/turbidity" &&
+            jsonData.value !== undefined
+          ) {
+            newData.turbidity = parseFloat(jsonData.value);
+          }
+        } catch (e) {
+          // Fallback to plain string parsing if JSON fails
+          const value = parseFloat(msg.message);
+          if (!isNaN(value)) {
+            if (msg.topic === "smart-aqua/temp") newData.temperature = value;
+            else if (msg.topic === "smart-aqua/ph") newData.ph = value;
+            else if (msg.topic === "smart-aqua/tds") newData.tds = value;
+            else if (msg.topic === "smart-aqua/turbidity")
+              newData.turbidity = value;
+          }
         }
       });
 

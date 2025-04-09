@@ -1,39 +1,30 @@
 import { useRouter } from "expo-router";
-import { useState, useCallback } from "react";
-import { StyleSheet, ActivityIndicator, ScrollView } from "react-native";
-import { useBluetooth } from "../../hooks/useBluetooth";
+import { useState } from "react";
+import { StyleSheet, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-
+import { useTaoMqtt } from "@/hooks/useTaoMqtt";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { TouchableOpacity } from "@/components/TouchableOpacity";
 import MqttMonitor from "@/components/MqttMonitor";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import Button from "@/components/Button";
 import ScreenContainer from "@/components/ScreenContainer";
-import { Colors, Spacing, BorderRadius } from "@/constants/Colors";
 import Layout from "@/constants/Layout";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [isScanning, setIsScanning] = useState(false);
-  const { connectToDevice, connectedDevice, scanForDevices } = useBluetooth();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
 
-  const handleScan = useCallback(async () => {
-    setIsScanning(true);
-    try {
-      const device = await scanForDevices();
-      if (device !== null && device !== undefined) {
-        await connectToDevice(device);
-        router.push("/dashboard");
-      }
-    } finally {
-      setIsScanning(false);
-    }
-  }, [scanForDevices, connectToDevice, router]);
+  // Use MQTT directly instead of Bluetooth
+  const mqttClient = useTaoMqtt("mqtt://broker.hivemq.com:1883", "", {
+    clientId: `smart-aqua-home-${Math.random().toString(16).slice(2, 8)}`,
+  });
+
+  const handleGoToDashboard = () => {
+    router.push("/dashboard");
+  };
 
   return (
     <ScreenContainer>
@@ -49,51 +40,35 @@ export default function HomeScreen() {
 
           <ThemedView style={styles.statusRow}>
             <ThemedView style={styles.statusItem}>
-              <IconSymbol name="water" size={22} color="#0a7ea4" />
-              <ThemedText>MQTT: </ThemedText>
-              <ThemedView
-                style={[styles.statusIndicator, { backgroundColor: "#22c55e" }]}
-              />
-              <ThemedText>Connected</ThemedText>
-            </ThemedView>
-
-            <ThemedView style={styles.statusItem}>
               <IconSymbol name="paperplane.fill" size={22} color="#0a7ea4" />
-              <ThemedText>Device: </ThemedText>
+              <ThemedText>MQTT: </ThemedText>
               <ThemedView
                 style={[
                   styles.statusIndicator,
                   {
-                    backgroundColor: connectedDevice ? "#22c55e" : "#dc2626",
+                    backgroundColor: mqttClient.isConnected
+                      ? "#22c55e"
+                      : "#dc2626",
                   },
                 ]}
               />
               <ThemedText>
-                {connectedDevice ? "Connected" : "Disconnected"}
+                {mqttClient.isConnected ? "Connected" : "Disconnected"}
               </ThemedText>
             </ThemedView>
           </ThemedView>
 
-          {connectedDevice && (
-            <ThemedView style={styles.deviceInfo}>
-              <ThemedText style={styles.deviceName}>
-                {connectedDevice.name || "Unknown Device"}
-              </ThemedText>
-            </ThemedView>
-          )}
-
           <TouchableOpacity
-            style={styles.scanButton}
-            onPress={handleScan}
-            disabled={isScanning}
+            style={styles.connectButton}
+            onPress={() =>
+              mqttClient.isConnected
+                ? mqttClient.disconnect()
+                : mqttClient.connect()
+            }
           >
-            {isScanning ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <ThemedText style={styles.buttonText}>
-                Scan for Devices
-              </ThemedText>
-            )}
+            <ThemedText style={styles.buttonText}>
+              {mqttClient.isConnected ? "Disconnect MQTT" : "Connect to MQTT"}
+            </ThemedText>
           </TouchableOpacity>
         </ThemedView>
 
@@ -103,7 +78,7 @@ export default function HomeScreen() {
           </ThemedText>
           <MqttMonitor
             brokerUrl="mqtt://broker.hivemq.com:1883"
-            topic="smart-aqua/data"
+            topic="smart-aqua/#"
             compact={true}
           />
         </ThemedView>
@@ -114,16 +89,13 @@ export default function HomeScreen() {
           Getting Started
         </ThemedText>
         <ThemedText style={styles.guideText}>
-          1. Connect to your Smart Aquarium device using the "Scan for Devices"
-          button
+          1. Connect to the MQTT broker using the "Connect to MQTT" button
         </ThemedText>
         <ThemedText style={styles.guideText}>
-          2. Once connected, you'll be taken to the Dashboard to monitor your
-          aquarium
+          2. View live sensor data from your aquarium in the MQTT monitor
         </ThemedText>
         <ThemedText style={styles.guideText}>
-          3. Use the Dashboard to monitor water parameters and control your
-          aquarium
+          3. Go to Dashboard to control your aquarium and view detailed stats
         </ThemedText>
       </ThemedView>
 
@@ -132,6 +104,7 @@ export default function HomeScreen() {
           Features
         </ThemedText>
 
+        {/* Feature items remain unchanged */}
         <ThemedView style={styles.featureItem}>
           <IconSymbol
             name="chart.line.uptrend.xyaxis"
@@ -220,20 +193,20 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
   },
-  deviceInfo: {
-    marginTop: 4,
-    marginBottom: 16,
-    paddingLeft: 30,
-  },
-  deviceName: {
-    fontWeight: "500",
-  },
-  scanButton: {
+  connectButton: {
     backgroundColor: "#0a7ea4",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
+  },
+  dashboardButton: {
+    backgroundColor: "#22c55e",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 24,
   },
   buttonText: {
     color: "#fff",
