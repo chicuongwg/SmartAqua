@@ -159,22 +159,46 @@ export default function FishPondDashboard() {
   }, [mqttClient.messages]);
 
   // Search function
-  const handleSearch = (text: string) => {
-    setSearchQuery(text);
-    if (text.length > 1) {
-      setIsLoading(true);
-      // Simulate API call delay
-      setTimeout(() => {
-        const filteredResults = FISH_DATABASE.filter((fish) =>
-          fish.name.toLowerCase().includes(text.toLowerCase())
-        );
-        setSearchResults(filteredResults);
-        setShowSearchResults(true);
-        setIsLoading(false);
-      }, 500);
-    } else {
+  const handleSearch = async () => {
+    const text = searchQuery.trim();
+    if (text.length <= 1) {
       setSearchResults([]);
       setShowSearchResults(false);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      console.log("Searching for:", text);
+
+      const response = await fetch(
+        "https://smartaquarium-jmlc.onrender.com/fish",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: text }),
+        }
+      );
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errText}`);
+      }
+
+      const data = await response.json();
+      console.log("Search results:", data);
+
+      setSearchResults(data);
+      setShowSearchResults(true);
+    } catch (error) {
+      console.error("Error during search:", error);
+      setSearchResults([]);
+      setShowSearchResults(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -347,10 +371,13 @@ export default function FishPondDashboard() {
       <ThemedView style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search for fish..."
+          placeholder="Search fish..."
           value={searchQuery}
-          onChangeText={handleSearch}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={() => handleSearch()}
+          returnKeyType="search"
         />
+
         {isLoading && (
           <ActivityIndicator
             size="small"
@@ -363,8 +390,8 @@ export default function FishPondDashboard() {
       {/* Search Results */}
       {showSearchResults && (
         <ThemedView style={styles.searchResultsContainer}>
-          {searchResults.length === 0 ? (
-            <ThemedText style={styles.noResultsText}>
+          {!searchResults || Object.keys(searchResults).length === 0 ? (
+            <ThemedText style={[styles.noResultsText, { color: "#000" }]}>
               No fish species found
             </ThemedText>
           ) : (
@@ -372,15 +399,52 @@ export default function FishPondDashboard() {
               style={styles.searchResultsList}
               nestedScrollEnabled={true}
             >
-              {searchResults.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.searchResultItem}
-                  onPress={() => selectFish(item)}
-                >
-                  <ThemedText>{item.name}</ThemedText>
-                </TouchableOpacity>
-              ))}
+              <TouchableOpacity
+                style={styles.searchResultItem}
+                onPress={() => selectFish(searchResults)}
+              >
+                <ThemedText style={{ color: "#000" }}>
+                  <ThemedText style={{ fontWeight: "bold", color: "#000" }}>
+                    Fish Name:
+                  </ThemedText>{" "}
+                  {searchResults["Fish Name"]}
+                </ThemedText>
+
+                <ThemedText style={{ color: "#000" }}>
+                  <ThemedText style={{ fontWeight: "bold", color: "#000" }}>
+                    Aggression:
+                  </ThemedText>{" "}
+                  {searchResults["Aggression"]}
+                </ThemedText>
+
+                <ThemedText style={{ color: "#000" }}>
+                  <ThemedText style={{ fontWeight: "bold", color: "#000" }}>
+                    Breeding Difficulty:
+                  </ThemedText>{" "}
+                  {searchResults["Breeding Difficulty"]}
+                </ThemedText>
+
+                <ThemedText style={{ color: "#000" }}>
+                  <ThemedText style={{ fontWeight: "bold", color: "#000" }}>
+                    Minimum Tank Size:
+                  </ThemedText>{" "}
+                  {searchResults["Minimum Tank Size"]}
+                </ThemedText>
+
+                <ThemedText style={{ color: "#000" }}>
+                  <ThemedText style={{ fontWeight: "bold", color: "#000" }}>
+                    Temperature:
+                  </ThemedText>{" "}
+                  {searchResults["Temperature"]}
+                </ThemedText>
+
+                <ThemedText style={{ color: "#000" }}>
+                  <ThemedText style={{ fontWeight: "bold", color: "#000" }}>
+                    pH Range:
+                  </ThemedText>{" "}
+                  {searchResults["pH Range"]}
+                </ThemedText>
+              </TouchableOpacity>
             </ScrollView>
           )}
         </ThemedView>
