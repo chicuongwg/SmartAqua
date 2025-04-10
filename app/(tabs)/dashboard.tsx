@@ -22,22 +22,24 @@ type AquariumData = {
   turbidity: number;
 };
 
-const MQTT_URL = "mqtt://broker.hivemq.com:1883"; // ⚠️ thay đổi nếu cần
-const MQTT_USERNAME = ""; // optional
-const MQTT_PASSWORD = ""; // optional
+const MQTT_URL =
+  "wss://59e6345689bc4f5fafcf56db4088e8c4.s1.eu.hivemq.cloud:8884/mqtt"; // ⚠️ thay đổi nếu cần
+const MQTT_USERNAME = "dltmai"; // optional
+const MQTT_PASSWORD = "Dltmai1410"; // optional
 
 export default function DashboardScreen() {
   const [data, setData] = useState<AquariumData | null>(null);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<any>(null);
 
-  const { clientRef, isConnected, messages, error } = useTaoMqtt(
-    MQTT_URL,
-    MQTT_USERNAME,
-    {
-      password: MQTT_PASSWORD,
-    }
-  );
+  const {
+    clientRef,
+    isConnected,
+    messages,
+    error: mqttError,
+  } = useTaoMqtt(MQTT_URL, MQTT_USERNAME, {
+    password: MQTT_PASSWORD,
+  });
 
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
@@ -58,18 +60,34 @@ export default function DashboardScreen() {
 
     const handleMessage = (topic: string, message: Buffer) => {
       if (topic === "esp32/sensor/data") {
+        const msgStr = message.toString();
+        console.log("📩 Raw MQTT message:", msgStr);
+
         try {
-          const jsonData = JSON.parse(message.toString());
-          setData({
-            temperature: jsonData.temperature,
-            ph: jsonData.ph,
-            tds: jsonData.tds,
-            turbidity: jsonData.turbidity,
-          });
-          console.log("✅ Received data:", jsonData);
+          // Ví dụ message: "Temp: 31.69 C, TDS: 0.00 ppm, Turbidity: 0.00 %"
+          const matches = msgStr.match(
+            /Temp:\s*([\d.]+)\s*C,\s*TDS:\s*([\d.]+)\s*ppm,\s*Turbidity:\s*([\d.]+)\s*%/
+          );
+
+          if (matches) {
+            const temperature = parseFloat(matches[1]);
+            const tds = parseFloat(matches[2]);
+            const turbidity = parseFloat(matches[3]);
+
+            const parsedData = {
+              temperature,
+              tds,
+              turbidity,
+              ph: 0.0, // Nếu không có thì gán tạm
+            };
+
+            setData(parsedData);
+            console.log("✅ Parsed sensor data:", parsedData);
+          } else {
+            console.warn("⚠️ Không match được dữ liệu từ chuỗi:", msgStr);
+          }
         } catch (err) {
-          console.error("❌ Failed to parse JSON:", err);
-          console.log("Raw message:", message.toString());
+          console.error("❌ Failed to parse sensor data manually:", err);
         }
       }
     };
