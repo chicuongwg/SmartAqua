@@ -6,22 +6,17 @@ The Smart Aquarium Management IoT System is an intelligent aquarium monitoring a
 
 ## Features
 
-- Real-time Sensor Monitoring: Tracks water quality parameters such as pH, temperature, TDS, and ammonia levels.
+- Real-time Sensor Monitoring: Tracks water quality parameters such as temperature, TDS, turbulent.
 
-- AI Recommendation Model: Provides suggestions based on sensor readings (e.g., water change alerts, pH stabilizer recommendations).
+- AI Recommendation Model: Provides suggestions based on sensor readings (e.g., water change alerts).
 
 - Automated Feeding System: Schedules and executes feeding times based on fish species and dietary needs.
 
 - Remote Control via Mobile App: Allows users to control the filtration and feeding system remotely.
-- Multi-Protocol Communication: Uses MQTT for device control, HTTP/WebSockets for cloud interactions, and BLE for initial setup.
 
 ## Protocols Used:
 
 - MQTT: For controlling devices (e.g., feeding and filtration control).
-
-- HTTP/WebSockets: For cloud data transmission and real-time monitoring.
-
-- BLE: For initial device setup and configuration.
 
 ## Functional Flow
 
@@ -35,7 +30,7 @@ The Smart Aquarium Management IoT System is an intelligent aquarium monitoring a
 
 | Condition              | Action                                     |
 | ---------------------- | ------------------------------------------ |
-| pH < 6.5               | Alert user, recommend adding pH stabilizer |
+| Turb > 50%             | Alert user, suggest a partial water change |
 | TDS > 300 ppm          | Alert user, suggest a partial water change |
 | Scheduled Feeding Time | Activate feeder motor                      |
 
