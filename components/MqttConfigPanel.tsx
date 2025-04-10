@@ -17,9 +17,14 @@ export default function MqttConfigPanel({ mqttClient }: MqttConfigPanelProps) {
   const [password, setPassword] = useState("");
 
   useEffect(() => {
-    // Set initial values from current connection
-    if (mqttClient.broker)
-      setBroker(mqttClient.broker.replace("mqtt://", "").split(":")[0]);
+    if (mqttClient?.broker) {
+      try {
+        const host = mqttClient.broker.replace("mqtt://", "").split(":")[0];
+        setBroker(host);
+      } catch (error) {
+        console.warn("Error parsing mqttClient.broker:", error);
+      }
+    }
   }, [mqttClient]);
 
   const handleConnect = () => {
@@ -29,14 +34,13 @@ export default function MqttConfigPanel({ mqttClient }: MqttConfigPanelProps) {
     }
 
     try {
-      // If already connected, disconnect first
-      if (mqttClient.isConnected) {
-        mqttClient.disconnect();
+      // Disconnect first if already connected
+      if (mqttClient?.isConnected) {
+        mqttClient.disconnect?.();
       }
 
-      // Connect with new settings
       const brokerUrl = `ws://${broker}:${port || 8000}/mqtt`;
-      mqttClient.connect(brokerUrl, username || undefined, {
+      mqttClient?.connect?.(brokerUrl, username || undefined, {
         clientId: clientId,
         password: password || undefined,
       });
@@ -49,17 +53,19 @@ export default function MqttConfigPanel({ mqttClient }: MqttConfigPanelProps) {
   };
 
   const handlePublish = () => {
-    if (!mqttClient.isConnected) {
+    if (!mqttClient?.isConnected) {
       Alert.alert("Error", "Not connected to MQTT broker");
       return;
     }
 
     try {
-      // Send test messages in JSON format to match your ESP32
-      mqttClient.publish("smart-aqua/temp", JSON.stringify({ value: 25.5 }));
-      mqttClient.publish("smart-aqua/ph", JSON.stringify({ value: 7.2 }));
-      mqttClient.publish("smart-aqua/tds", JSON.stringify({ value: 150 }));
-      mqttClient.publish("smart-aqua/turbidity", JSON.stringify({ value: 5 }));
+      mqttClient?.publish?.("smart-aqua/temp", JSON.stringify({ value: 25.5 }));
+      mqttClient?.publish?.("smart-aqua/ph", JSON.stringify({ value: 7.2 }));
+      mqttClient?.publish?.("smart-aqua/tds", JSON.stringify({ value: 150 }));
+      mqttClient?.publish?.(
+        "smart-aqua/turbidity",
+        JSON.stringify({ value: 5 })
+      );
 
       Alert.alert("Success", "Test messages published to all sensor topics");
     } catch (error) {
@@ -71,7 +77,7 @@ export default function MqttConfigPanel({ mqttClient }: MqttConfigPanelProps) {
   return (
     <ThemedView style={styles.container}>
       <ThemedText style={styles.statusText}>
-        Status: {mqttClient.isConnected ? "Connected" : "Disconnected"}
+        Status: {mqttClient?.isConnected ? "Connected" : "Disconnected"}
       </ThemedText>
 
       <ThemedView style={styles.inputGroup}>
@@ -125,17 +131,17 @@ export default function MqttConfigPanel({ mqttClient }: MqttConfigPanelProps) {
 
       <TouchableOpacity style={styles.connectButton} onPress={handleConnect}>
         <ThemedText style={styles.buttonText}>
-          {mqttClient.isConnected ? "Reconnect" : "Connect"}
+          {mqttClient?.isConnected ? "Reconnect" : "Connect"}
         </ThemedText>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={[
           styles.publishButton,
-          !mqttClient.isConnected && styles.disabledButton,
+          !mqttClient?.isConnected && styles.disabledButton,
         ]}
         onPress={handlePublish}
-        disabled={!mqttClient.isConnected}
+        disabled={!mqttClient?.isConnected}
       >
         <ThemedText style={styles.buttonText}>Publish Test Message</ThemedText>
       </TouchableOpacity>

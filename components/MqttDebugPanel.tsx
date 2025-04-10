@@ -21,7 +21,7 @@ export default function MqttDebugPanel({
 }: {
   mqttClient: MqttClient;
 }) {
-  const recentMessages = mqttClient.messages.slice(-10);
+  const recentMessages = (mqttClient.messages || []).slice(-10);
 
   return (
     <ThemedView style={styles.container}>

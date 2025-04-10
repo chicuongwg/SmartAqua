@@ -22,101 +22,100 @@ type AquariumData = {
   turbidity: number;
 };
 
+const MQTT_URL = "mqtt://broker.hivemq.com:1883"; // ⚠️ thay đổi nếu cần
+const MQTT_USERNAME = ""; // optional
+const MQTT_PASSWORD = ""; // optional
+
 export default function DashboardScreen() {
   const [data, setData] = useState<AquariumData | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [error, setError] = useState<any>(null);
+
+  const { clientRef, isConnected, messages, error } = useTaoMqtt(
+    MQTT_URL,
+    MQTT_USERNAME,
+    {
+      password: MQTT_PASSWORD,
+    }
+  );
 
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
 
-  // MQTT hook for data
-  const mqttClient = useTaoMqtt("mqtt://broker.hivemq.com:1883", "", {
-    clientId: `smart-aqua-dash-${Math.random().toString(16).slice(2, 8)}`,
-  });
-
-  // Subscribe to topics when connected
   useEffect(() => {
-    if (mqttClient.isConnected) {
-      mqttClient.subscribe("smart-aqua/temp");
-      mqttClient.subscribe("smart-aqua/ph");
-      mqttClient.subscribe("smart-aqua/tds");
-      mqttClient.subscribe("smart-aqua/turbidity");
+    const client = clientRef.current;
+    if (!client) {
+      console.log("❌ MQTT client is null");
+      return;
     }
-  }, [mqttClient.isConnected]);
 
-  // Process MQTT messages
-  useEffect(() => {
-    if (mqttClient.messages.length > 0) {
-      const newData: AquariumData = {
-        temperature: data?.temperature || 0,
-        ph: data?.ph || 0,
-        tds: data?.tds || 0,
-        turbidity: data?.turbidity || 0,
-      };
+    const handleConnect = () => {
+      console.log("✅ MQTT Connected");
+      setConnected(true);
+      client.subscribe("esp32/sensor/data");
+      console.log("📡 Subscribed to topic: esp32/sensor/data");
+    };
 
-      const latestMessages = mqttClient.messages.slice(-10);
-      latestMessages.forEach((msg) => {
+    const handleMessage = (topic: string, message: Buffer) => {
+      if (topic === "esp32/sensor/data") {
         try {
-          // Try to parse as JSON first
-          const jsonData = JSON.parse(msg.message);
-
-          // Handle JSON format - adjust these properties based on your ESP32's JSON structure
-          if (msg.topic === "smart-aqua/temp" && jsonData.value !== undefined) {
-            newData.temperature = parseFloat(jsonData.value);
-          } else if (
-            msg.topic === "smart-aqua/ph" &&
-            jsonData.value !== undefined
-          ) {
-            newData.ph = parseFloat(jsonData.value);
-          } else if (
-            msg.topic === "smart-aqua/tds" &&
-            jsonData.value !== undefined
-          ) {
-            newData.tds = parseFloat(jsonData.value);
-          } else if (
-            msg.topic === "smart-aqua/turbidity" &&
-            jsonData.value !== undefined
-          ) {
-            newData.turbidity = parseFloat(jsonData.value);
-          }
-        } catch (e) {
-          // Fallback to plain string parsing if JSON fails
-          const value = parseFloat(msg.message);
-          if (!isNaN(value)) {
-            if (msg.topic === "smart-aqua/temp") newData.temperature = value;
-            else if (msg.topic === "smart-aqua/ph") newData.ph = value;
-            else if (msg.topic === "smart-aqua/tds") newData.tds = value;
-            else if (msg.topic === "smart-aqua/turbidity")
-              newData.turbidity = value;
-          }
+          const jsonData = JSON.parse(message.toString());
+          setData({
+            temperature: jsonData.temperature,
+            ph: jsonData.ph,
+            tds: jsonData.tds,
+            turbidity: jsonData.turbidity,
+          });
+          console.log("✅ Received data:", jsonData);
+        } catch (err) {
+          console.error("❌ Failed to parse JSON:", err);
+          console.log("Raw message:", message.toString());
         }
-      });
+      }
+    };
 
-      setData(newData);
-    }
-  }, [mqttClient.messages]);
+    const handleError = (err: any) => {
+      console.error("❌ MQTT Error:", err);
+      setError(err);
+    };
+
+    client.on("connect", handleConnect);
+    client.on("message", handleMessage);
+    client.on("error", handleError);
+
+    return () => {
+      client.off("connect", handleConnect);
+      client.off("message", handleMessage);
+      client.off("error", handleError);
+    };
+  }, [clientRef]);
 
   const refreshData = () => {
-    // Force reconnect MQTT if needed
-    if (!mqttClient.isConnected) {
-      mqttClient.connect();
+    const client = clientRef.current;
+    if (!connected && client) {
+      client.reconnect();
     }
   };
 
   const handleDisconnect = () => {
+    const client = clientRef.current;
+    if (client) {
+      client.end();
+    }
     router.replace("/");
   };
 
-  // Replace Bluetooth feeding with MQTT command
   const handleFeed = async () => {
+    const client = clientRef.current;
     try {
-      if (mqttClient.isConnected) {
-        mqttClient.publish("smart-aqua/commands/feed", "FEED");
+      if (connected && client) {
+        client.publish("esp32/sensor/command", "FEED");
         Alert.alert("Success", "Feed command sent via MQTT");
       } else {
         Alert.alert("Error", "MQTT not connected");
       }
     } catch (error) {
-      console.error("Failed to send feed command:", error);
+      console.error("❌ Failed to send feed command:", error);
       Alert.alert("Error", "Failed to send feed command");
     }
   };
@@ -133,9 +132,10 @@ export default function DashboardScreen() {
         Dashboard
       </ThemedText>
 
+      {/* WATER PARAMETERS */}
       <ThemedView style={styles.sectionCard}>
         <ThemedView style={styles.sectionHeader}>
-          <IconSymbol name="water" size={22} color="#0a7ea4" />
+          <IconSymbol name="drop" size={22} color="#0a7ea4" />
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             Water Parameters
           </ThemedText>
@@ -154,7 +154,7 @@ export default function DashboardScreen() {
             <ThemedView style={styles.gridItem}>
               <DataCard
                 title="pH Level"
-                value={data?.ph || 0}
+                value={data?.ph}
                 unit="pH"
                 icon="water"
               />
@@ -186,13 +186,10 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </ThemedView>
 
+      {/* FEEDING CONTROLS */}
       <ThemedView style={styles.sectionCard}>
         <ThemedView style={styles.sectionHeader}>
-          <IconSymbol
-            name="chart.line.uptrend.xyaxis"
-            size={22}
-            color="#0a7ea4"
-          />
+          <IconSymbol name="bolt.fill" size={22} color="#0a7ea4" />
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             Feeding Controls
           </ThemedText>
@@ -201,13 +198,10 @@ export default function DashboardScreen() {
         <AutoFeed onFeed={handleFeed} />
       </ThemedView>
 
+      {/* PARAMETER HISTORY */}
       <ThemedView style={styles.sectionCard}>
         <ThemedView style={styles.sectionHeader}>
-          <IconSymbol
-            name="chart.line.uptrend.xyaxis"
-            size={22}
-            color="#0a7ea4"
-          />
+          <IconSymbol name="chart.bar.fill" size={22} color="#0a7ea4" />
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             Parameter History
           </ThemedText>
@@ -221,6 +215,7 @@ export default function DashboardScreen() {
         />
       </ThemedView>
 
+      {/* MQTT CONFIG */}
       <ThemedView style={styles.sectionCard}>
         <ThemedView style={styles.sectionHeader}>
           <IconSymbol name="paperplane.fill" size={22} color="#0a7ea4" />
@@ -228,26 +223,28 @@ export default function DashboardScreen() {
             MQTT Configuration
           </ThemedText>
         </ThemedView>
-        <MqttConfigPanel mqttClient={mqttClient} />
+        {clientRef.current && (
+          <MqttConfigPanel mqttClient={clientRef.current} />
+        )}
       </ThemedView>
 
+      {/* MQTT DEBUG */}
       <ThemedView style={styles.sectionCard}>
         <ThemedView style={styles.sectionHeader}>
-          <IconSymbol name="paperplane.fill" size={22} color="#0a7ea4" />
+          <IconSymbol name="ant.circle.fill" size={22} color="#0a7ea4" />
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             MQTT Debug
           </ThemedText>
         </ThemedView>
         <MqttDebugPanel
           mqttClient={{
-            ...mqttClient,
-            error: mqttClient.error
-              ? { message: mqttClient.error.message }
-              : undefined,
+            ...clientRef.current,
+            error: error ? { message: error.message } : undefined,
           }}
         />
       </ThemedView>
 
+      {/* DISCONNECT */}
       <TouchableOpacity
         style={styles.disconnectButton}
         onPress={handleDisconnect}

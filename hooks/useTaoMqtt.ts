@@ -1,202 +1,73 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import * as mqttModule from '@taoqf/react-native-mqtt';
+import { useEffect, useRef, useState } from "react";
+import mqtt from "@taoqf/react-native-mqtt";
 
-// Initialize the MQTT client
-const mqtt = mqttModule;
-
-export interface MqttMessage {
+type Message = {
   topic: string;
   message: string;
-  timestamp: number;
-}
+};
 
-export interface MqttOptions {
-  clientId?: string;
-  username?: string;
-  password?: string;
-  keepalive?: number;
-  cleanSession?: boolean;
-  reconnectPeriod?: number;
-}
-
-export function useTaoMqtt(brokerUrl: string, defaultTopic: string, options: MqttOptions = {}) {
-  const [isConnected, setIsConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [messages, setMessages] = useState<MqttMessage[]>([]);
+export function useTaoMqtt(
+  url: string = "wss://59e6345689bc4f5fafcf56db4088e8c4.s1.eu.hivemq.cloud:8884/mqtt", // hoặc url mặc định của bạn
+  username: string = "",
+  options?: { clientId?: string; password?: string }
+) {
   const clientRef = useRef<any>(null);
-  
-  // Connect to the MQTT broker
-  const connect = useCallback(() => {
-    if (clientRef.current) {
-      return;
-    }
-    
-    setIsConnecting(true);
-    setError(null);
-    
-    try {
-      // Generate unique client ID if not provided
-      const clientId = options.clientId || `smartaqua_${Math.random().toString(16).slice(2, 8)}`;
-      
-      // Setup client with connection options
-      clientRef.current = mqtt.connect(brokerUrl, {
-        clientId,
-        username: options.username,
-        password: options.password,
-        keepalive: options.keepalive || 60,
-        clean: options.cleanSession !== false,
-        reconnectPeriod: options.reconnectPeriod || 1000,
-      });
-      
-      // Setup event handlers
-      clientRef.current.on('connect', () => {
-        console.log('MQTT Connected to:', brokerUrl);
-        setIsConnected(true);
-        setIsConnecting(false);
-        
-        // Auto-subscribe to default topic if provided
-        if (defaultTopic) {
-          subscribe(defaultTopic);
-        }
-      });
-      
-      clientRef.current.on('error', (err: Error) => {
-        console.error('MQTT Connection error:', err);
-        setError(err);
-        setIsConnecting(false);
-      });
-      
-      clientRef.current.on('offline', () => {
-        console.log('MQTT Client is offline');
-        setIsConnected(false);
-      });
-      
-      clientRef.current.on('message', (topic: string, payload: any) => {
-        const message = payload.toString();
-        console.log(`Message from ${topic}: ${message}`);
-        
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          {
-            topic,
-            message,
-            timestamp: Date.now(),
-          },
-        ]);
-      });
-    } catch (err) {
-      console.error('Failed to connect to MQTT broker:', err);
-      setError(err instanceof Error ? err : new Error('Unknown connection error'));
-      setIsConnecting(false);
-    }
-  }, [brokerUrl, defaultTopic, options]);
-  
-  // Subscribe to a topic
-  const subscribe = useCallback((topic: string, qos = 0) => {
-    if (!clientRef.current || !isConnected) {
-      console.warn('Cannot subscribe: MQTT client not connected');
-      return false;
-    }
-    
-    try {
-      clientRef.current.subscribe(topic, { qos }, (err: Error) => {
-        if (err) {
-          console.error(`Failed to subscribe to ${topic}:`, err);
-          setError(err);
-          return;
-        }
-        console.log(`Subscribed to ${topic}`);
-      });
-      return true;
-    } catch (err) {
-      console.error(`Error subscribing to ${topic}:`, err);
-      setError(err instanceof Error ? err : new Error('Unknown subscription error'));
-      return false;
-    }
-  }, [isConnected]);
-  
-  // Publish a message to a topic
-  const publish = useCallback((topic: string, message: string, qos = 0, retain = false) => {
-    if (!clientRef.current || !isConnected) {
-      console.warn('Cannot publish: MQTT client not connected');
-      return false;
-    }
-    
-    try {
-      clientRef.current.publish(topic, message, { qos, retain }, (err: Error) => {
-        if (err) {
-          console.error(`Failed to publish to ${topic}:`, err);
-          setError(err);
-          return;
-        }
-        console.log(`Published to ${topic}: ${message}`);
-      });
-      return true;
-    } catch (err) {
-      console.error(`Error publishing to ${topic}:`, err);
-      setError(err instanceof Error ? err : new Error('Unknown publish error'));
-      return false;
-    }
-  }, [isConnected]);
-  
-  // Unsubscribe from a topic
-  const unsubscribe = useCallback((topic: string) => {
-    if (!clientRef.current || !isConnected) {
-      return;
-    }
-    
-    clientRef.current.unsubscribe(topic, (err: Error) => {
-      if (err) {
-        console.error(`Failed to unsubscribe from ${topic}:`, err);
-        setError(err);
-        return;
-      }
-      console.log(`Unsubscribed from ${topic}`);
+  const [isConnected, setIsConnected] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const generatedClientId =
+      options?.clientId ||
+      "client_" + Math.random().toString(36).substring(2, 10);
+
+    console.log("🔌 Connecting to MQTT broker...");
+
+    const client = mqtt.connect(url, {
+      username,
+      password: options?.password ?? "",
+      clientId: generatedClientId,
+      keepalive: 60,
+      reconnectPeriod: 1000,
     });
-  }, [isConnected]);
-  
-  // Disconnect from the broker
-  const disconnect = useCallback(() => {
-    if (!clientRef.current) {
-      return;
-    }
-    
-    clientRef.current.end(false, () => {
-      console.log('MQTT Disconnected');
+
+    clientRef.current = client;
+
+    client.on("connect", () => {
+      console.log("✅ Connected to MQTT");
+      setIsConnected(true);
+    });
+
+    client.on("message", (topic: string, message: Buffer) => {
+      const msg = {
+        topic,
+        message: message.toString(),
+      };
+      console.log("📩", msg);
+      setMessages((prev) => [...prev, msg]);
+    });
+
+    client.on("error", (err: Error) => {
+      console.error("❌ MQTT Error:", err);
+      setError(err);
+    });
+
+    client.on("close", () => {
+      console.log("🔌 Disconnected from MQTT");
       setIsConnected(false);
-      clientRef.current = null;
     });
-  }, []);
-  
-  // Connect automatically when the hook is initialized
-  useEffect(() => {
-    connect();
-    
-    // Clean up on unmount
+
     return () => {
-      if (clientRef.current) {
-        disconnect();
-      }
+      client.end(true, () => {
+        console.log("🔌 MQTT client disconnected cleanly");
+      });
     };
-  }, [connect, disconnect]);
-  
-  // Reset error state when URL or options change
-  useEffect(() => {
-    setError(null);
-  }, [brokerUrl, options]);
-  
+  }, [url, username, options?.password]);
+
   return {
+    clientRef,
     isConnected,
-    isConnecting,
-    error,
     messages,
-    connect,
-    subscribe,
-    unsubscribe,
-    publish,
-    disconnect,
-    // Return the latest message for convenience
-    latestMessage: messages.length > 0 ? messages[messages.length - 1] : null,
+    error,
   };
 }
