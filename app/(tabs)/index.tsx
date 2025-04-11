@@ -1,6 +1,12 @@
 // Import necessary hooks and components from libraries
 import { useRouter } from "expo-router"; // Navigation
-import { StyleSheet, ScrollView, Alert, useColorScheme } from "react-native"; // Core RN
+import {
+  StyleSheet,
+  ScrollView,
+  Alert,
+  useColorScheme,
+  TouchableOpacity,
+} from "react-native"; // Core RN
 import { useSafeAreaInsets } from "react-native-safe-area-context"; // Safe area
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs"; // Tab bar height
 

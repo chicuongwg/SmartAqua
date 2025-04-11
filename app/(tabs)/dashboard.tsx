@@ -137,21 +137,18 @@ export default function DashboardScreen() {
         {/* IMPORTANT: Triggers MQTT FEED command */}
       </ThemedView>
 
-      {/* PARAMETER HISTORY */}
+      {/* PARAMETER HISTORY (Combined Graph) */}
       <ThemedView style={styles.sectionCard}>
         <ThemedView style={styles.sectionHeader}>
-          <IconSymbol name="chart.bar.fill" size={22} color="#0a7ea4" />
           <ThemedText type="subtitle" style={styles.sectionTitle}>
-            Parameter History
+            Sensor History
           </ThemedText>
         </ThemedView>
-        {/* ALERT: DataGraph currently only shows the single latest temperature value. Needs historical data source. */}
+
+        {/* Single DataGraph showing all sensors */}
         <DataGraph
-          title="Temperature Over Time"
-          data={aquariumData ? [aquariumData.temperature] : []}
-          labels={["Now"]}
-          color="#ff6384"
-          unit="°C"
+          title="Live Sensor Readings" // General title
+          // No dataType, color, or unit props needed
         />
       </ThemedView>
 
