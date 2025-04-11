@@ -1,70 +1,76 @@
-import { useRouter } from "expo-router";
-import { StyleSheet, ScrollView, Alert, useColorScheme } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { useTaoMqtt } from "@/hooks/useTaoMqtt";
-import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
-import { TouchableOpacity } from "@/components/TouchableOpacity";
-import { IconSymbol } from "@/components/ui/IconSymbol";
-import ScreenContainer from "@/components/ScreenContainer";
-import Layout from "@/constants/Layout";
-import { useMqtt } from "@/context/MqttContext";
+// Import necessary hooks and components from libraries
+import { useRouter } from "expo-router"; // Navigation
+import { StyleSheet, ScrollView, Alert, useColorScheme } from "react-native"; // Core RN
+import { useSafeAreaInsets } from "react-native-safe-area-context"; // Safe area
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs"; // Tab bar height
 
+// Import custom hooks and components
+import { useTaoMqtt } from "@/hooks/useTaoMqtt"; // ALERT: Potentially unused MQTT hook
+import { ThemedText } from "@/components/ThemedText"; // Themed text
+import { ThemedView } from "@/components/ThemedView"; // Themed view
+import { IconSymbol } from "@/components/ui/IconSymbol"; // Icons
+import ScreenContainer from "@/components/ScreenContainer"; // Screen layout
+import Layout from "@/constants/Layout"; // Layout constants
+import { useMqtt } from "@/context/MqttContext"; // IMPORTANT: Global MQTT context hook
+
+// Define the HomeScreen component
 export default function HomeScreen() {
+  // Initialize hooks
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const colorScheme = useColorScheme();
 
-  // Use MQTT directly instead of Bluetooth
-  const mqttClient = useTaoMqtt("mqtt://broker.hivemq.com:1883", "", {
-    clientId: `smart-aqua-home-${Math.random().toString(16).slice(2, 8)}`,
-  });
+  // Access the global MQTT context state and functions
+  const { isConnected, connect, disconnect, aquariumData } = useMqtt(); // IMPORTANT: Get MQTT state/functions
 
-  // Sử dụng MQTT context
-  const { isConnected, connect, disconnect, aquariumData } = useMqtt();
-
-  // Hiển thị thông tin kết nối
+  // Function to handle toggling the MQTT connection
   const toggleConnection = () => {
     if (isConnected) {
-      disconnect();
+      disconnect(); // Disconnect via context
       Alert.alert("MQTT", "Disconnected from MQTT broker");
     } else {
-      connect();
+      connect(); // Connect via context
       Alert.alert("MQTT", "Connecting to MQTT broker...");
     }
   };
 
+  // Render the component UI
   return (
     <ScreenContainer>
+      {/* App Title */}
       <ThemedText type="largeTitle" style={styles.title}>
         SmartAqua
       </ThemedText>
+      {/* App Subtitle */}
       <ThemedText type="subtitle" style={styles.subtitle}>
         Your Intelligent Aquarium Control Center
       </ThemedText>
 
+      {/* System Status Information Block */}
       <ThemedView card style={styles.infoBlock}>
         <ThemedView style={styles.statusSection}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             System Status
           </ThemedText>
 
+          {/* MQTT Connection Status Display */}
           <ThemedView style={styles.statusRow}>
             <ThemedView style={styles.statusItem}>
+              {/* Wifi icon indicating connection status */}
               <IconSymbol
-                name={isConnected ? "wifi" : "wifi.slash"}
+                name={isConnected ? "wifi" : "wifi.slash"} // Dynamic icon based on connection
                 size={24}
-                color={isConnected ? "#16a34a" : "#dc2626"}
+                color={isConnected ? "#16a34a" : "#dc2626"} // Dynamic color
               />
               <ThemedView style={styles.statusTextContainer}>
                 <ThemedText>MQTT Connection</ThemedText>
+                {/* Text displaying connection status */}
                 <ThemedText
                   style={[
                     styles.statusValue,
                     {
-                      color: isConnected ? "#16a34a" : "#dc2626",
+                      color: isConnected ? "#16a34a" : "#dc2626", // Dynamic color
                     },
                   ]}
                 >
@@ -74,36 +80,39 @@ export default function HomeScreen() {
             </ThemedView>
           </ThemedView>
 
+          {/* Button to Connect/Disconnect MQTT */}
           <TouchableOpacity
             style={styles.connectButton}
-            onPress={toggleConnection}
+            onPress={toggleConnection} // IMPORTANT: Toggles MQTT connection
           >
             <ThemedText style={styles.buttonText}>
+              {/* Button label changes based on connection status */}
               {isConnected ? "Disconnect MQTT" : "Connect to MQTT"}
             </ThemedText>
           </TouchableOpacity>
         </ThemedView>
       </ThemedView>
 
+      {/* Quick Guide Section */}
       <ThemedText type="subtitle" style={styles.sectionTitle}>
         Quick Guide
       </ThemedText>
-
       <ThemedView card style={styles.guideSection}>
         <ThemedText style={styles.guideText}>
           This is a demo application for the SmartAqua project. It allows you to
           monitor and control your aquarium system remotely.
         </ThemedText>
         <ThemedText style={styles.guideText}>
-          To get started, connect to the MQTT broker and subscribe to the
-          relevant topics.
+          To get started, connect to the MQTT broker using the button above or
+          via the Settings tab.
         </ThemedText>
         <ThemedText style={styles.guideText}>
-          You can also control the feeding schedule and monitor the water
-          parameters.
+          Navigate using the bottom tabs to view the dashboard, fish guide, or
+          adjust settings.
         </ThemedText>
       </ThemedView>
 
+      {/* Footer Section */}
       <ThemedView style={styles.footer}>
         <ThemedText style={styles.footerText}>
           Developed by{" "}
@@ -117,7 +126,7 @@ export default function HomeScreen() {
   );
 }
 
-// Styles
+// Styles for the component (remain unchanged)
 const styles = StyleSheet.create({
   pageTitle: {
     marginVertical: Layout.margin.section,

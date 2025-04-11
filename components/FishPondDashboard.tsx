@@ -12,9 +12,9 @@ import {
 } from "react-native";
 import { ThemedView } from "./ThemedView";
 import { ThemedText } from "./ThemedText";
-import Button from "./Button";
+import Button from "./Button"; // ALERT: Using custom Button component. Verify implementation.
 import { IconSymbol } from "./ui/IconSymbol";
-import { useMqtt } from "@/context/MqttContext";
+import { useMqtt } from "@/context/MqttContext"; // IMPORTANT: Using global MQTT context
 
 // Define BorderRadius constants locally
 const BorderRadius = {
@@ -47,6 +47,7 @@ type ComparisonResult = {
 };
 
 export default function FishPondDashboard() {
+  // Component state variables
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<FishTemplate[]>([]);
   const [selectedFish, setSelectedFish] = useState<FishTemplate | null>(null);
@@ -55,19 +56,19 @@ export default function FishPondDashboard() {
   const [comparisonResults, setComparisonResults] = useState<
     ComparisonResult[]
   >([]);
-  const [tankLength, setTankLength] = useState<string>("");
-  const [tankWidth, setTankWidth] = useState<string>("");
-  const [tankHeight, setTankHeight] = useState<string>("");
-  const [tankVolume, setTankVolume] = useState<number>(0);
+  const [tankLength, setTankLength] = useState<string>(""); // Tank dimension state
+  const [tankWidth, setTankWidth] = useState<string>(""); // Tank dimension state
+  const [tankHeight, setTankHeight] = useState<string>(""); // Tank dimension state
+  const [tankVolume, setTankVolume] = useState<number>(0); // Calculated tank volume
   const [showDimensionInputs, setShowDimensionInputs] =
-    useState<boolean>(false);
+    useState<boolean>(false); // ALERT: State variable 'showDimensionInputs' is declared but never used.
 
   // Sử dụng context MQTT toàn cục
   const {
-    aquariumData,
+    aquariumData, // IMPORTANT: Live data from MQTT
     waterType: pondWaterType,
     setWaterType: setPondWaterType,
-    connect,
+    connect, // IMPORTANT: Function to connect MQTT
   } = useMqtt();
 
   // Chuyển đổi kiểu nước để hiển thị
@@ -75,22 +76,23 @@ export default function FishPondDashboard() {
     return type === "lake" ? "Freshwater" : "Saltwater";
   };
 
-  // Hàm tìm kiếm cá
+  // Hàm tìm kiếm cá (by name or triggers volume calculation)
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
-      // If there's no search query but tank dimensions are entered, use those instead
+      // If no name query, check if dimensions are entered for volume search
       if (tankLength && tankWidth && tankHeight) {
-        calculateTankVolume();
+        calculateTankVolume(); // IMPORTANT: Trigger volume calculation and search
         return;
       }
-      return;
+      return; // No search query and no dimensions
     }
 
+    // Search by name logic
     setIsLoading(true);
     setShowSearchResults(true);
 
     try {
-      // Simulate API call with dummy data
+      // ALERT: Simulating API call for name search. Replace with actual API/data source.
       setTimeout(() => {
         // Dummy data for demonstration
         const dummyResults: FishTemplate[] = [
@@ -141,15 +143,16 @@ export default function FishPondDashboard() {
   const selectFish = (fish: FishTemplate) => {
     setSelectedFish(fish);
     setShowSearchResults(false);
-    setSearchQuery(fish.name);
-    compareParameters(fish);
+    setSearchQuery(fish.name); // Update search input with selected fish name
+    compareParameters(fish); // IMPORTANT: Trigger comparison
   };
 
   // So sánh thông số và đưa ra khuyến nghị
   const compareParameters = (fish: FishTemplate) => {
+    // IMPORTANT: Core logic comparing selected fish needs vs. current pond data from MQTT
     const results: ComparisonResult[] = [];
 
-    // So sánh loại nước
+    // Compare water type
     results.push({
       parameter: "Water Type",
       severity: fish.waterType === pondWaterType ? "good" : "danger",
@@ -161,7 +164,7 @@ export default function FishPondDashboard() {
             )}, current pond is ${translateWaterType(pondWaterType)}`,
     });
 
-    // So sánh pH
+    // Compare pH
     const phDifference = Math.abs(fish.ph - aquariumData.ph);
     let phSeverity: SeverityLevel = "good";
     let phMessage = "pH level is suitable";
@@ -184,7 +187,7 @@ export default function FishPondDashboard() {
       message: phMessage,
     });
 
-    // So sánh nhiệt độ
+    // Compare temperature
     const tempDifference = Math.abs(
       fish.temperature - aquariumData.temperature
     );
@@ -213,7 +216,7 @@ export default function FishPondDashboard() {
       message: tempMessage,
     });
 
-    // So sánh Turbidity
+    // Compare Turbidity
     const turbidityDifference = Math.abs(
       fish.turbidity - aquariumData.turbidity
     );
@@ -242,7 +245,7 @@ export default function FishPondDashboard() {
       message: turbMessage,
     });
 
-    // So sánh TDS
+    // Compare TDS
     const tdsDifference = Math.abs(fish.tds - aquariumData.tds);
     let tdsSeverity: SeverityLevel = "good";
     let tdsMessage = "TDS level is suitable";
@@ -269,23 +272,24 @@ export default function FishPondDashboard() {
       message: tdsMessage,
     });
 
-    setComparisonResults(results);
+    setComparisonResults(results); // Update state with comparison results
   };
 
   // Cập nhật dữ liệu hồ cá
   const refreshPondData = () => {
-    // Làm mới kết nối MQTT nếu cần
-    connect();
+    // Attempt MQTT connection if needed
+    connect(); // IMPORTANT: Ensure MQTT is connected
 
-    // Cập nhật lại so sánh nếu có cá được chọn
+    // Re-run comparison if a fish is selected
     if (selectedFish) {
       compareParameters(selectedFish);
     }
+    // ALERT: Consider adding feedback if connection fails or data doesn't update.
   };
 
-  // Add this function to calculate tank volume and validate inputs
+  // Calculate tank volume and trigger fish search based on size
   const calculateTankVolume = () => {
-    // Validate inputs
+    // IMPORTANT: Validates inputs and calculates volume
     const length = parseFloat(tankLength);
     const width = parseFloat(tankWidth);
     const height = parseFloat(tankHeight);
@@ -304,22 +308,21 @@ export default function FishPondDashboard() {
     }
 
     // Calculate volume in liters (assuming dimensions are in cm)
-    // Formula: length * width * height / 1000 (to convert cm³ to liters)
     const volumeInLiters = (length * width * height) / 1000;
     setTankVolume(volumeInLiters);
 
-    // Now search for compatible fish based on tank size
+    // IMPORTANT: Trigger fish search based on calculated volume
     searchForCompatibleFish(volumeInLiters);
   };
 
-  // Add this function to find compatible fish based on tank volume
+  // Find compatible fish based on tank volume
   const searchForCompatibleFish = (volumeInLiters: number) => {
+    // IMPORTANT: Logic to find fish suitable for the calculated volume
     setIsLoading(true);
     setShowSearchResults(true);
 
     try {
-      // Here you would normally call your KNN model API
-      // For now, we'll simulate a response based on tank size
+      // ALERT: Simulating API/KNN model call for volume-based search. Replace with actual logic.
       setTimeout(() => {
         // Example fish database with minimum tank size requirements
         const fishDatabase: Array<FishTemplate & { minTankSize: number }> = [
@@ -381,7 +384,7 @@ export default function FishPondDashboard() {
           .map(({ minTankSize, ...rest }) => rest); // Remove minTankSize from results
 
         // Convert results to JSON for potential API usage
-        const resultsJson = JSON.stringify(compatibleFish);
+        const resultsJson = JSON.stringify(compatibleFish); // ALERT: resultsJson logged but not used elsewhere.
         console.log("Compatible fish JSON:", resultsJson);
 
         // Update state with results
@@ -399,6 +402,7 @@ export default function FishPondDashboard() {
   return (
     <ScrollView style={styles.scrollContainer}>
       {/* Tank Dimensions Input Card */}
+      {/* IMPORTANT: Section for users to input tank size for recommendations */}
       <ThemedView style={styles.searchCard}>
         <ThemedView style={styles.cardHeader}>
           <IconSymbol name="cube" size={20} color="#0a7ea4" />
@@ -406,6 +410,7 @@ export default function FishPondDashboard() {
         </ThemedView>
 
         <ThemedView style={styles.dimensionsContainer}>
+          {/* Input fields for Length, Width, Height */}
           <ThemedView style={styles.dimensionInputRow}>
             <ThemedView style={styles.dimensionInputGroup}>
               <ThemedText style={styles.dimensionLabel}>Length (cm)</ThemedText>
@@ -454,18 +459,20 @@ export default function FishPondDashboard() {
             </ThemedView>
           </ThemedView>
 
+          {/* Button to trigger volume calculation and search */}
           <Button
             label="Find Compatible Fish"
             type="primary"
             size="medium"
-            onPress={calculateTankVolume}
+            onPress={calculateTankVolume} // IMPORTANT: Calls volume calculation
             style={styles.dimensionButton}
           />
         </ThemedView>
       </ThemedView>
 
+      {/* Container for the rest of the content */}
       <ThemedView style={styles.container}>
-        {/* Phần tìm kiếm cá */}
+        {/* IMPORTANT: Section for users to search fish by name */}
         <ThemedView style={styles.searchCard}>
           <ThemedView style={styles.cardHeader}>
             <IconSymbol name="magnifyingglass" size={20} color="#0a7ea4" />
@@ -473,6 +480,7 @@ export default function FishPondDashboard() {
           </ThemedView>
 
           <ThemedView style={styles.searchContainer}>
+            {/* Search Input */}
             <TextInput
               style={styles.searchInput}
               placeholder="Search for a fish..."
@@ -480,14 +488,16 @@ export default function FishPondDashboard() {
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
+            {/* Search Button */}
             <TouchableOpacity
-              onPress={handleSearch}
+              onPress={handleSearch} // IMPORTANT: Calls name search or volume calculation
               style={styles.searchButton}
             >
               <ThemedText style={styles.searchButtonText}>Search</ThemedText>
             </TouchableOpacity>
           </ThemedView>
 
+          {/* Loading Indicator */}
           {isLoading && (
             <ThemedView style={styles.loadingContainer}>
               <ActivityIndicator size="small" color="#0a7ea4" />
@@ -495,6 +505,7 @@ export default function FishPondDashboard() {
             </ThemedView>
           )}
 
+          {/* Search Results List (for name or volume search) */}
           {showSearchResults && searchResults.length > 0 && (
             <FlatList
               data={searchResults}
@@ -503,7 +514,7 @@ export default function FishPondDashboard() {
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.resultItem}
-                  onPress={() => selectFish(item)}
+                  onPress={() => selectFish(item)} // IMPORTANT: Selects fish from results
                 >
                   <ThemedText style={styles.resultName}>{item.name}</ThemedText>
                   <ThemedText style={styles.resultDetail}>
@@ -515,6 +526,7 @@ export default function FishPondDashboard() {
             />
           )}
 
+          {/* No Results Message */}
           {showSearchResults && searchResults.length === 0 && (
             <ThemedView style={styles.noResultsContainer}>
               <ThemedText>No fish found with that name.</ThemedText>
@@ -579,7 +591,7 @@ export default function FishPondDashboard() {
           </ThemedView>
         )}
 
-        {/* Hiển thị thông số hồ cá hiện tại */}
+        {/* IMPORTANT: Displays live data from MQTT context */}
         <ThemedView style={styles.dataCard}>
           <ThemedView style={styles.cardHeader}>
             <IconSymbol
@@ -591,6 +603,7 @@ export default function FishPondDashboard() {
           </ThemedView>
 
           <ThemedView style={styles.parametersList}>
+            {/* Water Type Selector */}
             <ThemedView style={styles.parameterItem}>
               <ThemedText style={styles.parameterLabel}>Water Type:</ThemedText>
               <ThemedView style={styles.waterTypeSelector}>
@@ -599,7 +612,7 @@ export default function FishPondDashboard() {
                     styles.waterTypeButton,
                     pondWaterType === "lake" ? styles.selectedWaterType : null,
                   ]}
-                  onPress={() => setPondWaterType("lake")}
+                  onPress={() => setPondWaterType("lake")} // IMPORTANT: Updates context state
                 >
                   <ThemedText
                     style={[
@@ -618,7 +631,7 @@ export default function FishPondDashboard() {
                     styles.waterTypeButton,
                     pondWaterType === "ocean" ? styles.selectedWaterType : null,
                   ]}
-                  onPress={() => setPondWaterType("ocean")}
+                  onPress={() => setPondWaterType("ocean")} // IMPORTANT: Updates context state
                 >
                   <ThemedText
                     style={[
@@ -634,6 +647,7 @@ export default function FishPondDashboard() {
               </ThemedView>
             </ThemedView>
 
+            {/* Display Temperature, pH, TDS, Turbidity from aquariumData */}
             <ThemedView style={styles.parameterItem}>
               <ThemedText style={styles.parameterLabel}>
                 Temperature (°C):
@@ -667,16 +681,17 @@ export default function FishPondDashboard() {
             </ThemedView>
           </ThemedView>
 
+          {/* Refresh Button */}
           <Button
             label="Refresh Data"
             type="primary"
             size="medium"
-            onPress={refreshPondData}
+            onPress={refreshPondData} // IMPORTANT: Attempts MQTT connect and re-compares
             style={styles.refreshButton}
           />
         </ThemedView>
 
-        {/* Hiển thị kết quả so sánh */}
+        {/* IMPORTANT: Shows compatibility analysis based on selected fish and current data */}
         {selectedFish && comparisonResults.length > 0 && (
           <ThemedView style={styles.dataCard}>
             <ThemedView style={styles.cardHeader}>
@@ -685,6 +700,7 @@ export default function FishPondDashboard() {
             </ThemedView>
 
             <ThemedView style={styles.comparisonResults}>
+              {/* Maps through comparisonResults to display each parameter's status */}
               {comparisonResults.map((result, index) => (
                 <ThemedView
                   key={index}
@@ -729,6 +745,7 @@ export default function FishPondDashboard() {
   );
 }
 
+// Styles for the component
 const styles = StyleSheet.create({
   // Giữ nguyên styles từ component cũ
   container: {

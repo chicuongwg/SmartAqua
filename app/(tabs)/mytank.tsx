@@ -3,8 +3,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 
 import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
-import { IconSymbol } from "@/components/ui/IconSymbol";
 import FishPondDashboard from "@/components/FishPondDashboard";
 import ScreenContainer from "@/components/ScreenContainer";
 

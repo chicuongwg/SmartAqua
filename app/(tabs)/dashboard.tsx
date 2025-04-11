@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, ScrollView, TouchableOpacity, Alert } from "react-native";
-import { router } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { router } from "expo-router"; // Navigation
+import { useSafeAreaInsets } from "react-native-safe-area-context"; // Safe area
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs"; // Tab bar height
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { DataCard } from "@/components/DataCard";
-import { DataGraph } from "@/components/DataGraph";
+import { DataGraph } from "@/components/DataGraph"; // ALERT: Graph currently shows only the latest value.
 import AutoFeed from "@/components/AutoFeed";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 
 // Import MQTT context
-import { useMqtt } from "@/context/MqttContext";
+import { useMqtt } from "@/context/MqttContext"; // IMPORTANT: Using global MQTT context
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -19,21 +19,23 @@ export default function DashboardScreen() {
 
   // Use shared MQTT context
   const { isConnected, aquariumData, publishMessage, connect, disconnect } =
-    useMqtt();
+    useMqtt(); // IMPORTANT: Accessing MQTT state and functions
 
+  // Handler to disconnect MQTT and navigate to home
   const handleDisconnect = () => {
-    disconnect();
-    router.replace("/");
+    disconnect(); // Disconnect via context
+    router.replace("/"); // IMPORTANT: Navigates away after disconnect
   };
 
+  // Handler to send FEED command via MQTT
   const handleFeed = async () => {
     if (!isConnected) {
-      Alert.alert("Error", "MQTT not connected");
+      Alert.alert("Error", "MQTT not connected"); // Check connection before publishing
       return;
     }
 
     try {
-      publishMessage("esp32/sensor/command", "FEED");
+      publishMessage("esp32/sensor/command", "FEED"); // IMPORTANT: Publishing MQTT message
       Alert.alert("Success", "Feed command sent");
     } catch (error) {
       console.error("❌ Failed to send feed command:", error);
@@ -41,11 +43,13 @@ export default function DashboardScreen() {
     }
   };
 
+  // Handler to attempt MQTT connection if disconnected
   const refreshConnection = () => {
     // Reconnect MQTT if it's not connected
     if (!isConnected) {
-      connect();
+      connect(); // Connect via context
     }
+    // ALERT: Consider adding feedback (e.g., Alert) if already connected or connection attempt fails.
   };
 
   return (
@@ -69,12 +73,13 @@ export default function DashboardScreen() {
           </ThemedText>
         </ThemedView>
 
+        {/* Displaying data from MQTT context */}
         <ThemedView style={styles.gridContainer}>
           <ThemedView style={styles.gridRow}>
             <ThemedView style={styles.gridItem}>
               <DataCard
                 title="Temperature"
-                value={aquariumData.temperature}
+                value={aquariumData.temperature} // IMPORTANT: Displaying MQTT data
                 unit="°C"
                 icon="thermometer"
               />
@@ -83,7 +88,7 @@ export default function DashboardScreen() {
             <ThemedView style={styles.gridItem}>
               <DataCard
                 title="pH"
-                value={aquariumData.ph}
+                value={aquariumData.ph} // IMPORTANT: Displaying MQTT data
                 unit=""
                 icon="drop.fill"
               />
@@ -94,7 +99,7 @@ export default function DashboardScreen() {
             <ThemedView style={styles.gridItem}>
               <DataCard
                 title="TDS"
-                value={aquariumData.tds}
+                value={aquariumData.tds} // IMPORTANT: Displaying MQTT data
                 unit="ppm"
                 icon="molecule"
               />
@@ -103,7 +108,7 @@ export default function DashboardScreen() {
             <ThemedView style={styles.gridItem}>
               <DataCard
                 title="Turbidity"
-                value={aquariumData.turbidity}
+                value={aquariumData.turbidity} // IMPORTANT: Displaying MQTT data
                 unit="NTU"
                 icon="eyedropper"
               />
@@ -111,9 +116,10 @@ export default function DashboardScreen() {
           </ThemedView>
         </ThemedView>
 
+        {/* Button to refresh MQTT connection */}
         <TouchableOpacity
           style={styles.refreshButton}
-          onPress={refreshConnection}
+          onPress={refreshConnection} // IMPORTANT: Attempts MQTT connection
         >
           <ThemedText style={styles.buttonText}>Refresh Data</ThemedText>
         </TouchableOpacity>
@@ -127,8 +133,8 @@ export default function DashboardScreen() {
             Feeding Controls
           </ThemedText>
         </ThemedView>
-
-        <AutoFeed onFeed={handleFeed} />
+        <AutoFeed onFeed={handleFeed} />{" "}
+        {/* IMPORTANT: Triggers MQTT FEED command */}
       </ThemedView>
 
       {/* PARAMETER HISTORY */}
@@ -139,6 +145,7 @@ export default function DashboardScreen() {
             Parameter History
           </ThemedText>
         </ThemedView>
+        {/* ALERT: DataGraph currently only shows the single latest temperature value. Needs historical data source. */}
         <DataGraph
           title="Temperature Over Time"
           data={aquariumData ? [aquariumData.temperature] : []}
@@ -151,7 +158,7 @@ export default function DashboardScreen() {
       {/* DISCONNECT */}
       <TouchableOpacity
         style={styles.disconnectButton}
-        onPress={handleDisconnect}
+        onPress={handleDisconnect} // IMPORTANT: Disconnects MQTT and navigates away
       >
         <ThemedText style={styles.buttonText}>Disconnect</ThemedText>
       </TouchableOpacity>
@@ -159,6 +166,7 @@ export default function DashboardScreen() {
   );
 }
 
+// Styles for the component (remain unchanged)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
