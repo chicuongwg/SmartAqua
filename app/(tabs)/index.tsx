@@ -1,35 +1,48 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { StyleSheet, ScrollView } from "react-native";
+import { StyleSheet, ScrollView, Alert, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useTaoMqtt } from "@/hooks/useTaoMqtt";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { TouchableOpacity } from "@/components/TouchableOpacity";
-import MqttMonitor from "@/components/MqttMonitor";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import ScreenContainer from "@/components/ScreenContainer";
 import Layout from "@/constants/Layout";
+import { useMqtt } from "@/context/MqttContext";
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
+  const colorScheme = useColorScheme();
 
   // Use MQTT directly instead of Bluetooth
   const mqttClient = useTaoMqtt("mqtt://broker.hivemq.com:1883", "", {
     clientId: `smart-aqua-home-${Math.random().toString(16).slice(2, 8)}`,
   });
 
-  const handleGoToDashboard = () => {
-    router.push("/dashboard");
+  // Sử dụng MQTT context
+  const { isConnected, connect, disconnect, aquariumData } = useMqtt();
+
+  // Hiển thị thông tin kết nối
+  const toggleConnection = () => {
+    if (isConnected) {
+      disconnect();
+      Alert.alert("MQTT", "Disconnected from MQTT broker");
+    } else {
+      connect();
+      Alert.alert("MQTT", "Connecting to MQTT broker...");
+    }
   };
 
   return (
     <ScreenContainer>
-      <ThemedText type="title" style={styles.pageTitle}>
+      <ThemedText type="largeTitle" style={styles.title}>
         SmartAqua
+      </ThemedText>
+      <ThemedText type="subtitle" style={styles.subtitle}>
+        Your Intelligent Aquarium Control Center
       </ThemedText>
 
       <ThemedView card style={styles.infoBlock}>
@@ -40,110 +53,55 @@ export default function HomeScreen() {
 
           <ThemedView style={styles.statusRow}>
             <ThemedView style={styles.statusItem}>
-              <IconSymbol name="paperplane.fill" size={22} color="#0a7ea4" />
-              <ThemedText>MQTT: </ThemedText>
-              <ThemedView
-                style={[
-                  styles.statusIndicator,
-                  {
-                    backgroundColor: mqttClient.isConnected
-                      ? "#22c55e"
-                      : "#dc2626",
-                  },
-                ]}
+              <IconSymbol
+                name={isConnected ? "wifi" : "wifi.slash"}
+                size={24}
+                color={isConnected ? "#16a34a" : "#dc2626"}
               />
-              <ThemedText>
-                {mqttClient.isConnected ? "Connected" : "Disconnected"}
-              </ThemedText>
+              <ThemedView style={styles.statusTextContainer}>
+                <ThemedText>MQTT Connection</ThemedText>
+                <ThemedText
+                  style={[
+                    styles.statusValue,
+                    {
+                      color: isConnected ? "#16a34a" : "#dc2626",
+                    },
+                  ]}
+                >
+                  {isConnected ? "Connected" : "Disconnected"}
+                </ThemedText>
+              </ThemedView>
             </ThemedView>
           </ThemedView>
 
           <TouchableOpacity
             style={styles.connectButton}
-            onPress={() =>
-              mqttClient.isConnected
-                ? mqttClient.disconnect()
-                : mqttClient.connect()
-            }
+            onPress={toggleConnection}
           >
             <ThemedText style={styles.buttonText}>
-              {mqttClient.isConnected ? "Disconnect MQTT" : "Connect to MQTT"}
+              {isConnected ? "Disconnect MQTT" : "Connect to MQTT"}
             </ThemedText>
           </TouchableOpacity>
         </ThemedView>
-
-        <ThemedView style={styles.mqttSection}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            MQTT Sensor Data
-          </ThemedText>
-          <MqttMonitor
-            brokerUrl="mqtt://broker.hivemq.com:1883"
-            topic="smart-aqua/#"
-            compact={true}
-          />
-        </ThemedView>
       </ThemedView>
 
-      <ThemedView style={styles.guideSection}>
-        <ThemedText type="subtitle" style={styles.sectionTitle}>
-          Getting Started
+      <ThemedText type="subtitle" style={styles.sectionTitle}>
+        Quick Guide
+      </ThemedText>
+
+      <ThemedView card style={styles.guideSection}>
+        <ThemedText style={styles.guideText}>
+          This is a demo application for the SmartAqua project. It allows you to
+          monitor and control your aquarium system remotely.
         </ThemedText>
         <ThemedText style={styles.guideText}>
-          1. Connect to the MQTT broker using the "Connect to MQTT" button
+          To get started, connect to the MQTT broker and subscribe to the
+          relevant topics.
         </ThemedText>
         <ThemedText style={styles.guideText}>
-          2. View live sensor data from your aquarium in the MQTT monitor
+          You can also control the feeding schedule and monitor the water
+          parameters.
         </ThemedText>
-        <ThemedText style={styles.guideText}>
-          3. Go to Dashboard to control your aquarium and view detailed stats
-        </ThemedText>
-      </ThemedView>
-
-      <ThemedView style={styles.featuresSection}>
-        <ThemedText type="subtitle" style={styles.sectionTitle}>
-          Features
-        </ThemedText>
-
-        {/* Feature items remain unchanged */}
-        <ThemedView style={styles.featureItem}>
-          <IconSymbol
-            name="chart.line.uptrend.xyaxis"
-            size={24}
-            color="#0a7ea4"
-          />
-          <ThemedView style={styles.featureTextContainer}>
-            <ThemedText style={styles.featureTitle}>
-              Real-time Monitoring
-            </ThemedText>
-            <ThemedText style={styles.featureDescription}>
-              Track temperature, pH, TDS and turbidity in real-time
-            </ThemedText>
-          </ThemedView>
-        </ThemedView>
-
-        <ThemedView style={styles.featureItem}>
-          <IconSymbol name="molecule" size={24} color="#0a7ea4" />
-          <ThemedView style={styles.featureTextContainer}>
-            <ThemedText style={styles.featureTitle}>
-              Automated Feeding
-            </ThemedText>
-            <ThemedText style={styles.featureDescription}>
-              Set up scheduled feeding times for your fish
-            </ThemedText>
-          </ThemedView>
-        </ThemedView>
-
-        <ThemedView style={styles.featureItem}>
-          <IconSymbol name="eyedropper" size={24} color="#0a7ea4" />
-          <ThemedView style={styles.featureTextContainer}>
-            <ThemedText style={styles.featureTitle}>
-              Parameter Alerts
-            </ThemedText>
-            <ThemedText style={styles.featureDescription}>
-              Get notified when water parameters go out of safe ranges
-            </ThemedText>
-          </ThemedView>
-        </ThemedView>
       </ThemedView>
 
       <ThemedView style={styles.footer}>
@@ -263,5 +221,65 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.7,
     marginTop: 4,
+  },
+  title: {
+    marginVertical: Layout.margin.section,
+    textAlign: "center",
+  },
+  subtitle: {
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  statusTextContainer: {
+    flex: 1,
+  },
+  statusValue: {
+    fontWeight: "600",
+  },
+  readingsSection: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderColor: "#e5e5e5",
+  },
+  readingsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+  },
+  readingItem: {
+    width: "48%",
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.05)",
+  },
+  readingHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  readingTitle: {
+    marginLeft: 8,
+    fontWeight: "600",
+  },
+  readingValue: {
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  menuGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+    marginTop: 24,
+  },
+  menuItem: {
+    width: "48%",
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.05)",
+    alignItems: "center",
+  },
+  menuLabel: {
+    marginTop: 8,
+    fontWeight: "600",
   },
 });

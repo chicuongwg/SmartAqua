@@ -17,51 +17,80 @@ export function useTaoMqtt(
   const [messages, setMessages] = useState<Message[]>([]);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
+  // Create MQTT client connection
+  const connect = () => {
+    if (clientRef.current) {
+      console.log("MQTT client already exists, reconnecting...");
+      clientRef.current.reconnect();
+      return;
+    }
+
     const generatedClientId =
       options?.clientId ||
       "client_" + Math.random().toString(36).substring(2, 10);
 
     console.log("🔌 Connecting to MQTT broker...");
 
-    const client = mqtt.connect(url, {
-      username,
-      password: options?.password ?? "",
-      clientId: generatedClientId,
-      keepalive: 60,
-      reconnectPeriod: 1000,
-    });
-
-    clientRef.current = client;
-
-    client.on("connect", () => {
-      console.log("✅ Connected to MQTT");
-      setIsConnected(true);
-    });
-
-    client.on("message", (topic: string, message: Buffer) => {
-      const msg = {
-        topic,
-        message: message.toString(),
-      };
-      console.log("📩", msg);
-      setMessages((prev) => [...prev, msg]);
-    });
-
-    client.on("error", (err: Error) => {
-      console.error("❌ MQTT Error:", err);
-      setError(err);
-    });
-
-    client.on("close", () => {
-      console.log("🔌 Disconnected from MQTT");
-      setIsConnected(false);
-    });
-
-    return () => {
-      client.end(true, () => {
-        console.log("🔌 MQTT client disconnected cleanly");
+    try {
+      const client = mqtt.connect(url, {
+        username,
+        password: options?.password ?? "",
+        clientId: generatedClientId,
+        keepalive: 60,
+        reconnectPeriod: 1000,
       });
+
+      clientRef.current = client;
+
+      client.on("connect", () => {
+        console.log("✅ Connected to MQTT");
+        setIsConnected(true);
+      });
+
+      client.on("message", (topic: string, message: Buffer) => {
+        const msg = {
+          topic,
+          message: message.toString(),
+        };
+        console.log("📩", msg);
+        setMessages((prev) => [...prev, msg]);
+      });
+
+      client.on("error", (err: Error) => {
+        console.error("❌ MQTT Error:", err);
+        setError(err);
+      });
+
+      client.on("close", () => {
+        console.log("🔌 Disconnected from MQTT");
+        setIsConnected(false);
+      });
+    } catch (err) {
+      console.error("❌ Error creating MQTT client:", err);
+      setError(err instanceof Error ? err : new Error(String(err)));
+    }
+  };
+
+  // Disconnect MQTT client
+  const disconnect = () => {
+    if (clientRef.current) {
+      clientRef.current.end(true, () => {
+        console.log("🔌 MQTT client disconnected cleanly");
+        clientRef.current = null;
+        setIsConnected(false);
+      });
+    }
+  };
+
+  // Connect on initial render
+  useEffect(() => {
+    connect();
+    
+    // Clean up on unmount
+    return () => {
+      if (clientRef.current) {
+        disconnect();
+      }
     };
   }, [url, username, options?.password]);
 
@@ -70,5 +99,7 @@ export function useTaoMqtt(
     isConnected,
     messages,
     error,
+    connect,     // Add connect method
+    disconnect   // Add disconnect method
   };
 }

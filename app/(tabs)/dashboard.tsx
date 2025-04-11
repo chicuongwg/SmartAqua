@@ -1,137 +1,50 @@
-import { useEffect, useState } from "react";
-import { StyleSheet, ScrollView, Alert } from "react-native";
+import React, { useEffect, useState } from "react";
+import { StyleSheet, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
-import { TouchableOpacity } from "react-native";
 import { DataCard } from "@/components/DataCard";
 import { DataGraph } from "@/components/DataGraph";
 import AutoFeed from "@/components/AutoFeed";
-import { useTaoMqtt } from "@/hooks/useTaoMqtt";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 
-type AquariumData = {
-  temperature: number;
-  tds: number;
-  turbidity: number;
-};
-
-const MQTT_URL =
-  "wss://abdaef3e94154ecdb21371e844ac801c.s1.eu.hivemq.cloud:8884/mqtt"; // ⚠️ thay đổi nếu cần
-const MQTT_USERNAME = "ChiCuong"; // optional
-const MQTT_PASSWORD = "TestIoT123"; // optional
+// Import MQTT context
+import { useMqtt } from "@/context/MqttContext";
 
 export default function DashboardScreen() {
-  const [data, setData] = useState<AquariumData | null>(null);
-  const [connected, setConnected] = useState(false);
-  const [error, setError] = useState<any>(null);
-
-  const {
-    clientRef,
-    isConnected,
-    messages,
-    error: mqttError,
-  } = useTaoMqtt(MQTT_URL, MQTT_USERNAME, {
-    password: MQTT_PASSWORD,
-  });
-
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
 
-  useEffect(() => {
-    const client = clientRef.current;
-    if (!client) {
-      console.log("❌ MQTT client is null");
-      return;
-    }
-
-    const handleConnect = () => {
-      console.log("✅ MQTT Connected");
-      setConnected(true);
-      client.subscribe("esp32/sensor/data");
-      console.log("📡 Subscribed to topic: esp32/sensor/data");
-    };
-
-    const handleMessage = (topic: string, message: Buffer) => {
-      if (topic === "esp32/sensor/data") {
-        const msgStr = message.toString();
-        console.log("📩 Raw MQTT message:", msgStr);
-
-        try {
-          // Ví dụ message: "Temp: 31.69 C, TDS: 0.00 ppm, Turbidity: 0.00 %"
-          const matches = msgStr.match(
-            /Temp:\s*([\d.]+)\s*C,\s*TDS:\s*([\d.]+)\s*ppm,\s*Turbidity:\s*([\d.]+)\s*%/
-          );
-
-          if (matches) {
-            const temperature = parseFloat(matches[1]);
-            const tds = parseFloat(matches[2]);
-            const turbidity = parseFloat(matches[3]);
-
-            const parsedData = {
-              temperature,
-              tds,
-              turbidity,
-              ph: 0.0, // Nếu không có thì gán tạm
-            };
-
-            setData(parsedData);
-            console.log("✅ Parsed sensor data:", parsedData);
-          } else {
-            console.warn("⚠️ Không match được dữ liệu từ chuỗi:", msgStr);
-          }
-        } catch (err) {
-          console.error("❌ Failed to parse sensor data manually:", err);
-        }
-      }
-    };
-
-    const handleError = (err: any) => {
-      console.error("❌ MQTT Error:", err);
-      setError(err);
-    };
-
-    client.on("connect", handleConnect);
-    client.on("message", handleMessage);
-    client.on("error", handleError);
-
-    return () => {
-      client.off("connect", handleConnect);
-      client.off("message", handleMessage);
-      client.off("error", handleError);
-    };
-  }, [clientRef]);
-
-  const refreshData = () => {
-    const client = clientRef.current;
-    if (!connected && client) {
-      client.reconnect();
-    }
-  };
+  // Use shared MQTT context
+  const { isConnected, aquariumData, publishMessage, connect, disconnect } =
+    useMqtt();
 
   const handleDisconnect = () => {
-    const client = clientRef.current;
-    if (client) {
-      client.end();
-    }
+    disconnect();
     router.replace("/");
   };
 
   const handleFeed = async () => {
-    const client = clientRef.current;
+    if (!isConnected) {
+      Alert.alert("Error", "MQTT not connected");
+      return;
+    }
+
     try {
-      if (connected && client) {
-        client.publish("esp32/sensor/command", "FEED");
-        Alert.alert("Success", "Feed command sent via MQTT");
-      } else {
-        Alert.alert("Error", "MQTT not connected");
-      }
+      publishMessage("esp32/sensor/command", "FEED");
+      Alert.alert("Success", "Feed command sent");
     } catch (error) {
       console.error("❌ Failed to send feed command:", error);
       Alert.alert("Error", "Failed to send feed command");
+    }
+  };
+
+  const refreshConnection = () => {
+    // Reconnect MQTT if it's not connected
+    if (!isConnected) {
+      connect();
     }
   };
 
@@ -161,7 +74,7 @@ export default function DashboardScreen() {
             <ThemedView style={styles.gridItem}>
               <DataCard
                 title="Temperature"
-                value={data?.temperature}
+                value={aquariumData.temperature}
                 unit="°C"
                 icon="thermometer"
               />
@@ -169,10 +82,10 @@ export default function DashboardScreen() {
 
             <ThemedView style={styles.gridItem}>
               <DataCard
-                title="Turbidity"
-                value={data?.turbidity}
-                unit="NTU"
-                icon="eyedropper"
+                title="pH"
+                value={aquariumData.ph}
+                unit=""
+                icon="drop.fill"
               />
             </ThemedView>
           </ThemedView>
@@ -181,15 +94,27 @@ export default function DashboardScreen() {
             <ThemedView style={styles.gridItem}>
               <DataCard
                 title="TDS"
-                value={data?.tds}
+                value={aquariumData.tds}
                 unit="ppm"
                 icon="molecule"
+              />
+            </ThemedView>
+
+            <ThemedView style={styles.gridItem}>
+              <DataCard
+                title="Turbidity"
+                value={aquariumData.turbidity}
+                unit="NTU"
+                icon="eyedropper"
               />
             </ThemedView>
           </ThemedView>
         </ThemedView>
 
-        <TouchableOpacity style={styles.refreshButton} onPress={refreshData}>
+        <TouchableOpacity
+          style={styles.refreshButton}
+          onPress={refreshConnection}
+        >
           <ThemedText style={styles.buttonText}>Refresh Data</ThemedText>
         </TouchableOpacity>
       </ThemedView>
@@ -216,7 +141,7 @@ export default function DashboardScreen() {
         </ThemedView>
         <DataGraph
           title="Temperature Over Time"
-          data={data ? [data.temperature] : []}
+          data={aquariumData ? [aquariumData.temperature] : []}
           labels={["Now"]}
           color="#ff6384"
           unit="°C"

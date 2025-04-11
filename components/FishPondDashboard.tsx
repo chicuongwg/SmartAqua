@@ -1,29 +1,30 @@
 import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
-  View,
   TextInput,
+  TouchableOpacity,
   FlatList,
   ActivityIndicator,
-  TouchableOpacity,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
 } from "react-native";
-import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
-import { IconSymbol } from "@/components/ui/IconSymbol";
-import { useTaoMqtt } from "@/hooks/useTaoMqtt";
-import { Colors, Spacing, BorderRadius } from "@/constants/Colors";
-import Button from "@/components/Button";
+import { ThemedView } from "./ThemedView";
+import { ThemedText } from "./ThemedText";
+import Button from "./Button";
+import { IconSymbol } from "./ui/IconSymbol";
+import { useMqtt } from "@/context/MqttContext";
+
+// Define BorderRadius constants locally
+const BorderRadius = {
+  sm: 4,
+  md: 8,
+  lg: 12,
+};
 
 // Fish template data types
 type WaterType = "lake" | "ocean";
-
-// Simplified aquarium data type - standardized across the app
-type AquariumData = {
-  temperature: number;
-  tds: number;
-  turbidity: number;
-};
 
 // Fish template maintains more detailed parameters
 type FishTemplate = {
@@ -51,147 +52,104 @@ export default function FishPondDashboard() {
   const [selectedFish, setSelectedFish] = useState<FishTemplate | null>(null);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Using the standardized AquariumData type
-  const [pondParameters, setPondParameters] = useState<AquariumData>({
-    temperature: 0,
-    tds: 0,
-    turbidity: 0,
-  });
-
-  // Adding separate state for properties not in AquariumData
-  const [pondPh, setPondPh] = useState<number>(7.0);
-  const [pondWaterType, setPondWaterType] = useState<WaterType>("lake");
-
   const [comparisonResults, setComparisonResults] = useState<
     ComparisonResult[]
   >([]);
+  const [tankLength, setTankLength] = useState<string>("");
+  const [tankWidth, setTankWidth] = useState<string>("");
+  const [tankHeight, setTankHeight] = useState<string>("");
+  const [tankVolume, setTankVolume] = useState<number>(0);
+  const [showDimensionInputs, setShowDimensionInputs] =
+    useState<boolean>(false);
 
-  // Update the MQTT configuration to match dashboard.tsx
-  const mqttClient = useTaoMqtt(
-    "wss://abdaef3e94154ecdb21371e844ac801c.s1.eu.hivemq.cloud:8884/mqtt",
-    "ChiCuong",
-    {
-      clientId: `fish-pond-dash-${Math.random().toString(16).slice(2, 8)}`,
-      password: "TestIoT123",
-    }
-  );
+  // Sử dụng context MQTT toàn cục
+  const {
+    aquariumData,
+    waterType: pondWaterType,
+    setWaterType: setPondWaterType,
+    connect,
+  } = useMqtt();
 
-  // Subscribe to the same topic that works in dashboard.tsx
-  useEffect(() => {
-    if (mqttClient.isConnected && mqttClient.clientRef.current) {
-      mqttClient.clientRef.current.subscribe("esp32/sensor/data");
-      console.log("📡 Subscribed to topic: esp32/sensor/data");
-    }
-  }, [mqttClient.isConnected]);
+  // Chuyển đổi kiểu nước để hiển thị
+  const translateWaterType = (type: WaterType) => {
+    return type === "lake" ? "Freshwater" : "Saltwater";
+  };
 
-  // Update the message handling to use the same format as dashboard.tsx
-  useEffect(() => {
-    if (mqttClient.messages.length > 0) {
-      const latestMessages = mqttClient.messages.slice(-10);
-      latestMessages.forEach((msg) => {
-        if (msg.topic === "esp32/sensor/data") {
-          const msgStr = msg.message;
-          console.log("📩 Raw MQTT message in FishPond:", msgStr);
-
-          try {
-            // Use the same parsing logic as dashboard.tsx
-            const matches = msgStr.match(
-              /Temp:\s*([\d.]+)\s*C,\s*TDS:\s*([\d.]+)\s*ppm,\s*Turbidity:\s*([\d.]+)\s*%/
-            );
-
-            if (matches) {
-              const temperature = parseFloat(matches[1]);
-              const tds = parseFloat(matches[2]);
-              const turbidity = parseFloat(matches[3]);
-
-              // Update AquariumData with the values
-              setPondParameters({
-                temperature,
-                tds,
-                turbidity,
-              });
-
-              console.log("✅ Parsed sensor data in FishPond:", {
-                temperature,
-                tds,
-                turbidity,
-              });
-            } else {
-              console.warn("⚠️ Couldn't parse data from string:", msgStr);
-            }
-          } catch (err) {
-            console.error("❌ Failed to parse sensor data:", err);
-          }
-        }
-      });
-    }
-  }, [mqttClient.messages]);
-
-  // Search function
+  // Hàm tìm kiếm cá
   const handleSearch = async () => {
-    const text = searchQuery.trim();
-    if (text.length <= 1) {
-      setSearchResults([]);
-      setShowSearchResults(false);
+    if (!searchQuery.trim()) {
+      // If there's no search query but tank dimensions are entered, use those instead
+      if (tankLength && tankWidth && tankHeight) {
+        calculateTankVolume();
+        return;
+      }
       return;
     }
 
     setIsLoading(true);
+    setShowSearchResults(true);
 
     try {
-      console.log("Searching for:", text);
-
-      const response = await fetch(
-        "https://smartaquarium-jmlc.onrender.com/fish",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+      // Simulate API call with dummy data
+      setTimeout(() => {
+        // Dummy data for demonstration
+        const dummyResults: FishTemplate[] = [
+          {
+            id: "1",
+            name: "Goldfish",
+            waterType: "lake",
+            turbidity: 10,
+            ph: 7.5,
+            temperature: 23,
+            tds: 200,
           },
-          body: JSON.stringify({ name: text }),
-        }
-      );
+          {
+            id: "2",
+            name: "Betta Fish",
+            waterType: "lake",
+            turbidity: 5,
+            ph: 7.0,
+            temperature: 25,
+            tds: 150,
+          },
+          {
+            id: "3",
+            name: "Clownfish",
+            waterType: "ocean",
+            turbidity: 2,
+            ph: 8.2,
+            temperature: 26,
+            tds: 350,
+          },
+        ];
 
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errText}`);
-      }
+        // Filter results based on search query
+        const filteredResults = dummyResults.filter((fish) =>
+          fish.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
 
-      const data = await response.json();
-      console.log("Search results:", data);
-
-      setSearchResults(data);
-      setShowSearchResults(true);
+        setSearchResults(filteredResults);
+        setIsLoading(false);
+      }, 1000);
     } catch (error) {
-      console.error("Error during search:", error);
-      setSearchResults([]);
-      setShowSearchResults(false);
-    } finally {
+      console.error("Error searching for fish:", error);
       setIsLoading(false);
     }
   };
 
-  // Select fish and compare parameters
+  // Chọn loại cá và so sánh thông số
   const selectFish = (fish: FishTemplate) => {
     setSelectedFish(fish);
     setShowSearchResults(false);
     setSearchQuery(fish.name);
-
-    // Compare fish template with pond parameters
     compareParameters(fish);
   };
 
-  // Helper function to translate water type to English
-  const translateWaterType = (type: WaterType): string => {
-    return type === "lake" ? "freshwater" : "saltwater";
-  };
-
-  // Compare parameters and generate warnings
+  // So sánh thông số và đưa ra khuyến nghị
   const compareParameters = (fish: FishTemplate) => {
     const results: ComparisonResult[] = [];
 
-    // Compare water type - binary match/no match (no middle ground for water type)
+    // So sánh loại nước
     results.push({
       parameter: "Water Type",
       severity: fish.waterType === pondWaterType ? "good" : "danger",
@@ -203,8 +161,8 @@ export default function FishPondDashboard() {
             )}, current pond is ${translateWaterType(pondWaterType)}`,
     });
 
-    // Compare pH - 3 levels
-    const phDifference = Math.abs(fish.ph - pondPh);
+    // So sánh pH
+    const phDifference = Math.abs(fish.ph - aquariumData.ph);
     let phSeverity: SeverityLevel = "good";
     let phMessage = "pH level is suitable";
 
@@ -212,12 +170,12 @@ export default function FishPondDashboard() {
       phSeverity = "warning";
       phMessage = `${fish.name} prefers pH ${
         fish.ph
-      }, current pond is ${pondPh.toFixed(1)} (consider adjusting)`;
+      }, current pond is ${aquariumData.ph.toFixed(1)} (consider adjusting)`;
     } else if (phDifference > 1.0) {
       phSeverity = "danger";
       phMessage = `${fish.name} requires pH ${
         fish.ph
-      }, current pond is ${pondPh.toFixed(1)} (critical mismatch)`;
+      }, current pond is ${aquariumData.ph.toFixed(1)} (critical mismatch)`;
     }
 
     results.push({
@@ -226,9 +184,9 @@ export default function FishPondDashboard() {
       message: phMessage,
     });
 
-    // Compare temperature - 3 levels
+    // So sánh nhiệt độ
     const tempDifference = Math.abs(
-      fish.temperature - pondParameters.temperature
+      fish.temperature - aquariumData.temperature
     );
     let tempSeverity: SeverityLevel = "good";
     let tempMessage = "Temperature is suitable";
@@ -237,14 +195,14 @@ export default function FishPondDashboard() {
       tempSeverity = "warning";
       tempMessage = `${fish.name} prefers temperature of ${
         fish.temperature
-      }°C, current pond is ${pondParameters.temperature.toFixed(
+      }°C, current pond is ${aquariumData.temperature.toFixed(
         1
       )}°C (consider adjusting)`;
     } else if (tempDifference > 5) {
       tempSeverity = "danger";
       tempMessage = `${fish.name} requires temperature of ${
         fish.temperature
-      }°C, current pond is ${pondParameters.temperature.toFixed(
+      }°C, current pond is ${aquariumData.temperature.toFixed(
         1
       )}°C (critical mismatch)`;
     }
@@ -255,9 +213,9 @@ export default function FishPondDashboard() {
       message: tempMessage,
     });
 
-    // Compare turbidity - 3 levels
+    // So sánh Turbidity
     const turbidityDifference = Math.abs(
-      fish.turbidity - pondParameters.turbidity
+      fish.turbidity - aquariumData.turbidity
     );
     let turbSeverity: SeverityLevel = "good";
     let turbMessage = "Turbidity is suitable";
@@ -266,14 +224,14 @@ export default function FishPondDashboard() {
       turbSeverity = "warning";
       turbMessage = `${fish.name} prefers turbidity of ${
         fish.turbidity
-      }%, current pond is ${pondParameters.turbidity.toFixed(
+      }%, current pond is ${aquariumData.turbidity.toFixed(
         1
       )}% (consider adjusting)`;
     } else if (turbidityDifference > 10) {
       turbSeverity = "danger";
       turbMessage = `${fish.name} requires turbidity of ${
         fish.turbidity
-      }%, current pond is ${pondParameters.turbidity.toFixed(
+      }%, current pond is ${aquariumData.turbidity.toFixed(
         1
       )}% (critical mismatch)`;
     }
@@ -284,8 +242,8 @@ export default function FishPondDashboard() {
       message: turbMessage,
     });
 
-    // Compare TDS - 3 levels
-    const tdsDifference = Math.abs(fish.tds - pondParameters.tds);
+    // So sánh TDS
+    const tdsDifference = Math.abs(fish.tds - aquariumData.tds);
     let tdsSeverity: SeverityLevel = "good";
     let tdsMessage = "TDS level is suitable";
 
@@ -293,14 +251,14 @@ export default function FishPondDashboard() {
       tdsSeverity = "warning";
       tdsMessage = `${fish.name} prefers TDS of ${
         fish.tds
-      } ppm, current pond is ${pondParameters.tds.toFixed(
+      } ppm, current pond is ${aquariumData.tds.toFixed(
         0
       )} ppm (consider adjusting)`;
     } else if (tdsDifference > 100) {
       tdsSeverity = "danger";
       tdsMessage = `${fish.name} requires TDS of ${
         fish.tds
-      } ppm, current pond is ${pondParameters.tds.toFixed(
+      } ppm, current pond is ${aquariumData.tds.toFixed(
         0
       )} ppm (critical mismatch)`;
     }
@@ -314,72 +272,366 @@ export default function FishPondDashboard() {
     setComparisonResults(results);
   };
 
-  // Refresh pond data
+  // Cập nhật dữ liệu hồ cá
   const refreshPondData = () => {
-    try {
-      // Rather than trying to call connect(),
-      // end the current connection and let the hook reconnect automatically
-      if (!mqttClient.isConnected && mqttClient.clientRef.current) {
-        // End the connection (this will trigger automatic reconnection)
-        mqttClient.clientRef.current.end(false, () => {
-          console.log("MQTT client ended, auto-reconnecting...");
-        });
-      }
+    // Làm mới kết nối MQTT nếu cần
+    connect();
 
-      // Force update comparison if a fish is selected
-      if (selectedFish) {
-        compareParameters(selectedFish);
-      }
-    } catch (error) {
-      console.error("Error refreshing connection:", error);
+    // Cập nhật lại so sánh nếu có cá được chọn
+    if (selectedFish) {
+      compareParameters(selectedFish);
     }
   };
 
+  // Add this function to calculate tank volume and validate inputs
+  const calculateTankVolume = () => {
+    // Validate inputs
+    const length = parseFloat(tankLength);
+    const width = parseFloat(tankWidth);
+    const height = parseFloat(tankHeight);
+
+    if (isNaN(length) || isNaN(width) || isNaN(height)) {
+      Alert.alert(
+        "Invalid Input",
+        "Please enter valid numbers for all dimensions"
+      );
+      return;
+    }
+
+    if (length <= 0 || width <= 0 || height <= 0) {
+      Alert.alert("Invalid Input", "All dimensions must be greater than zero");
+      return;
+    }
+
+    // Calculate volume in liters (assuming dimensions are in cm)
+    // Formula: length * width * height / 1000 (to convert cm³ to liters)
+    const volumeInLiters = (length * width * height) / 1000;
+    setTankVolume(volumeInLiters);
+
+    // Now search for compatible fish based on tank size
+    searchForCompatibleFish(volumeInLiters);
+  };
+
+  // Add this function to find compatible fish based on tank volume
+  const searchForCompatibleFish = (volumeInLiters: number) => {
+    setIsLoading(true);
+    setShowSearchResults(true);
+
+    try {
+      // Here you would normally call your KNN model API
+      // For now, we'll simulate a response based on tank size
+      setTimeout(() => {
+        // Example fish database with minimum tank size requirements
+        const fishDatabase: Array<FishTemplate & { minTankSize: number }> = [
+          {
+            id: "1",
+            name: "Goldfish",
+            waterType: "lake",
+            turbidity: 10,
+            ph: 7.5,
+            temperature: 23,
+            tds: 200,
+            minTankSize: 75, // Minimum 75 liters
+          },
+          {
+            id: "2",
+            name: "Betta Fish",
+            waterType: "lake",
+            turbidity: 5,
+            ph: 7.0,
+            temperature: 25,
+            tds: 150,
+            minTankSize: 20, // Minimum 20 liters
+          },
+          {
+            id: "3",
+            name: "Clownfish",
+            waterType: "ocean",
+            turbidity: 2,
+            ph: 8.2,
+            temperature: 26,
+            tds: 350,
+            minTankSize: 100, // Minimum 100 liters
+          },
+          {
+            id: "4",
+            name: "Guppy",
+            waterType: "lake",
+            turbidity: 3,
+            ph: 7.2,
+            temperature: 24,
+            tds: 120,
+            minTankSize: 10, // Minimum 10 liters
+          },
+          {
+            id: "5",
+            name: "Angelfish",
+            waterType: "lake",
+            turbidity: 7,
+            ph: 6.8,
+            temperature: 27,
+            tds: 180,
+            minTankSize: 80, // Minimum 80 liters
+          },
+        ];
+
+        // Filter compatible fish based on tank size
+        const compatibleFish = fishDatabase
+          .filter((fish) => fish.minTankSize <= volumeInLiters)
+          .map(({ minTankSize, ...rest }) => rest); // Remove minTankSize from results
+
+        // Convert results to JSON for potential API usage
+        const resultsJson = JSON.stringify(compatibleFish);
+        console.log("Compatible fish JSON:", resultsJson);
+
+        // Update state with results
+        setSearchResults(compatibleFish);
+        setIsLoading(false);
+      }, 1500);
+    } catch (error) {
+      console.error("Error finding compatible fish:", error);
+      setIsLoading(false);
+      Alert.alert("Error", "Failed to find compatible fish");
+    }
+  };
+
+  // UI Component
   return (
-    <ThemedView style={styles.container}>
-      <ThemedView style={styles.sectionHeader}>
-        <IconSymbol name="water" size={22} color="#0a7ea4" />
-        <ThemedText type="subtitle" style={styles.sectionTitle}>
-          Fish Compatibility
-        </ThemedText>
-      </ThemedView>
+    <ScrollView style={styles.scrollContainer}>
+      {/* Tank Dimensions Input Card */}
+      <ThemedView style={styles.searchCard}>
+        <ThemedView style={styles.cardHeader}>
+          <IconSymbol name="cube" size={20} color="#0a7ea4" />
+          <ThemedText type="subtitle">Find Fish by Tank Size</ThemedText>
+        </ThemedView>
 
-      {/* Search Section */}
-      <ThemedView style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search fish..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onSubmitEditing={() => handleSearch()}
-          returnKeyType="search"
-        />
+        <ThemedView style={styles.dimensionsContainer}>
+          <ThemedView style={styles.dimensionInputRow}>
+            <ThemedView style={styles.dimensionInputGroup}>
+              <ThemedText style={styles.dimensionLabel}>Length (cm)</ThemedText>
+              <TextInput
+                style={styles.dimensionInput}
+                value={tankLength}
+                onChangeText={setTankLength}
+                keyboardType="numeric"
+                placeholder="0.0"
+              />
+            </ThemedView>
 
-        {isLoading && (
-          <ActivityIndicator
-            size="small"
-            color="#0a7ea4"
-            style={styles.searchSpinner}
+            <ThemedView style={styles.dimensionInputGroup}>
+              <ThemedText style={styles.dimensionLabel}>Width (cm)</ThemedText>
+              <TextInput
+                style={styles.dimensionInput}
+                value={tankWidth}
+                onChangeText={setTankWidth}
+                keyboardType="numeric"
+                placeholder="0.0"
+              />
+            </ThemedView>
+          </ThemedView>
+
+          <ThemedView style={styles.dimensionInputRow}>
+            <ThemedView style={styles.dimensionInputGroup}>
+              <ThemedText style={styles.dimensionLabel}>
+                Water Height (cm)
+              </ThemedText>
+              <TextInput
+                style={styles.dimensionInput}
+                value={tankHeight}
+                onChangeText={setTankHeight}
+                keyboardType="numeric"
+                placeholder="0.0"
+              />
+            </ThemedView>
+
+            <ThemedView
+              style={[styles.dimensionInputGroup, styles.volumeDisplay]}
+            >
+              <ThemedText style={styles.dimensionLabel}>Volume</ThemedText>
+              <ThemedText style={styles.volumeValue}>
+                {tankVolume > 0 ? `${tankVolume.toFixed(1)} L` : "-"}
+              </ThemedText>
+            </ThemedView>
+          </ThemedView>
+
+          <Button
+            label="Find Compatible Fish"
+            type="primary"
+            size="medium"
+            onPress={calculateTankVolume}
+            style={styles.dimensionButton}
           />
-        )}
+        </ThemedView>
       </ThemedView>
 
-      {/* Selected Fish Template */}
-      {selectedFish && (
+      <ThemedView style={styles.container}>
+        {/* Phần tìm kiếm cá */}
+        <ThemedView style={styles.searchCard}>
+          <ThemedView style={styles.cardHeader}>
+            <IconSymbol name="magnifyingglass" size={20} color="#0a7ea4" />
+            <ThemedText type="subtitle">Find Compatible Fish</ThemedText>
+          </ThemedView>
+
+          <ThemedView style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search for a fish..."
+              placeholderTextColor="#888"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            <TouchableOpacity
+              onPress={handleSearch}
+              style={styles.searchButton}
+            >
+              <ThemedText style={styles.searchButtonText}>Search</ThemedText>
+            </TouchableOpacity>
+          </ThemedView>
+
+          {isLoading && (
+            <ThemedView style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#0a7ea4" />
+              <ThemedText>Searching...</ThemedText>
+            </ThemedView>
+          )}
+
+          {showSearchResults && searchResults.length > 0 && (
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item) => item.id}
+              style={styles.resultsList}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.resultItem}
+                  onPress={() => selectFish(item)}
+                >
+                  <ThemedText style={styles.resultName}>{item.name}</ThemedText>
+                  <ThemedText style={styles.resultDetail}>
+                    {translateWaterType(item.waterType)} • {item.temperature}°C
+                    • pH {item.ph}
+                  </ThemedText>
+                </TouchableOpacity>
+              )}
+            />
+          )}
+
+          {showSearchResults && searchResults.length === 0 && (
+            <ThemedView style={styles.noResultsContainer}>
+              <ThemedText>No fish found with that name.</ThemedText>
+            </ThemedView>
+          )}
+        </ThemedView>
+
+        {/* Hiển thị thông tin cá đã chọn */}
+        {selectedFish && (
+          <ThemedView style={styles.dataCard}>
+            <ThemedView style={styles.cardHeader}>
+              <IconSymbol name="fish" size={20} color="#0a7ea4" />
+              <ThemedText type="subtitle">
+                {selectedFish.name} Parameters
+              </ThemedText>
+            </ThemedView>
+
+            <ThemedView style={styles.parametersList}>
+              <ThemedView style={styles.parameterItem}>
+                <ThemedText style={styles.parameterLabel}>
+                  Water Type:
+                </ThemedText>
+                <ThemedText style={styles.parameterValue}>
+                  {translateWaterType(selectedFish.waterType)}
+                </ThemedText>
+              </ThemedView>
+
+              <ThemedView style={styles.parameterItem}>
+                <ThemedText style={styles.parameterLabel}>
+                  Temperature (°C):
+                </ThemedText>
+                <ThemedText style={styles.parameterValue}>
+                  {selectedFish.temperature}
+                </ThemedText>
+              </ThemedView>
+
+              <ThemedView style={styles.parameterItem}>
+                <ThemedText style={styles.parameterLabel}>pH:</ThemedText>
+                <ThemedText style={styles.parameterValue}>
+                  {selectedFish.ph}
+                </ThemedText>
+              </ThemedView>
+
+              <ThemedView style={styles.parameterItem}>
+                <ThemedText style={styles.parameterLabel}>
+                  TDS (ppm):
+                </ThemedText>
+                <ThemedText style={styles.parameterValue}>
+                  {selectedFish.tds}
+                </ThemedText>
+              </ThemedView>
+
+              <ThemedView style={styles.parameterItem}>
+                <ThemedText style={styles.parameterLabel}>
+                  Turbidity (%):
+                </ThemedText>
+                <ThemedText style={styles.parameterValue}>
+                  {selectedFish.turbidity}
+                </ThemedText>
+              </ThemedView>
+            </ThemedView>
+          </ThemedView>
+        )}
+
+        {/* Hiển thị thông số hồ cá hiện tại */}
         <ThemedView style={styles.dataCard}>
           <ThemedView style={styles.cardHeader}>
-            <IconSymbol name="water" size={20} color="#0a7ea4" />
-            <ThemedText type="subtitle">
-              Params for {selectedFish.name}
-            </ThemedText>
+            <IconSymbol
+              name="chart.line.uptrend.xyaxis"
+              size={20}
+              color="#0a7ea4"
+            />
+            <ThemedText type="subtitle">Current Pond Parameters</ThemedText>
           </ThemedView>
 
           <ThemedView style={styles.parametersList}>
             <ThemedView style={styles.parameterItem}>
               <ThemedText style={styles.parameterLabel}>Water Type:</ThemedText>
-              <ThemedText style={styles.parameterValue}>
-                {translateWaterType(selectedFish.waterType)}
-              </ThemedText>
+              <ThemedView style={styles.waterTypeSelector}>
+                <TouchableOpacity
+                  style={[
+                    styles.waterTypeButton,
+                    pondWaterType === "lake" ? styles.selectedWaterType : null,
+                  ]}
+                  onPress={() => setPondWaterType("lake")}
+                >
+                  <ThemedText
+                    style={[
+                      styles.waterTypeText,
+                      pondWaterType === "lake"
+                        ? styles.selectedWaterTypeText
+                        : null,
+                    ]}
+                  >
+                    Freshwater
+                  </ThemedText>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.waterTypeButton,
+                    pondWaterType === "ocean" ? styles.selectedWaterType : null,
+                  ]}
+                  onPress={() => setPondWaterType("ocean")}
+                >
+                  <ThemedText
+                    style={[
+                      styles.waterTypeText,
+                      pondWaterType === "ocean"
+                        ? styles.selectedWaterTypeText
+                        : null,
+                    ]}
+                  >
+                    Saltwater
+                  </ThemedText>
+                </TouchableOpacity>
+              </ThemedView>
             </ThemedView>
 
             <ThemedView style={styles.parameterItem}>
@@ -387,14 +639,21 @@ export default function FishPondDashboard() {
                 Temperature (°C):
               </ThemedText>
               <ThemedText style={styles.parameterValue}>
-                {selectedFish.temperature}
+                {aquariumData.temperature.toFixed(1)}
+              </ThemedText>
+            </ThemedView>
+
+            <ThemedView style={styles.parameterItem}>
+              <ThemedText style={styles.parameterLabel}>pH:</ThemedText>
+              <ThemedText style={styles.parameterValue}>
+                {aquariumData.ph.toFixed(1)}
               </ThemedText>
             </ThemedView>
 
             <ThemedView style={styles.parameterItem}>
               <ThemedText style={styles.parameterLabel}>TDS (ppm):</ThemedText>
               <ThemedText style={styles.parameterValue}>
-                {selectedFish.tds}
+                {aquariumData.tds.toFixed(0)}
               </ThemedText>
             </ThemedView>
 
@@ -403,174 +662,95 @@ export default function FishPondDashboard() {
                 Turbidity (%):
               </ThemedText>
               <ThemedText style={styles.parameterValue}>
-                {selectedFish.turbidity}
+                {aquariumData.turbidity.toFixed(1)}
               </ThemedText>
             </ThemedView>
           </ThemedView>
-        </ThemedView>
-      )}
 
-      {/* Pond Parameters */}
-      <ThemedView style={styles.dataCard}>
-        <ThemedView style={styles.cardHeader}>
-          <IconSymbol
-            name="chart.line.uptrend.xyaxis"
-            size={20}
-            color="#0a7ea4"
+          <Button
+            label="Refresh Data"
+            type="primary"
+            size="medium"
+            onPress={refreshPondData}
+            style={styles.refreshButton}
           />
-          <ThemedText type="subtitle">Current Pond Parameters</ThemedText>
         </ThemedView>
 
-        <ThemedView style={styles.parametersList}>
-          <ThemedView style={styles.parameterItem}>
-            <ThemedText style={styles.parameterLabel}>Water Type:</ThemedText>
-            <ThemedView style={styles.waterTypeSelector}>
-              <TouchableOpacity
-                style={[
-                  styles.waterTypeButton,
-                  pondWaterType === "lake" ? styles.selectedWaterType : null,
-                ]}
-                onPress={() => setPondWaterType("lake")}
-              >
-                <ThemedText
-                  style={[
-                    styles.waterTypeText,
-                    pondWaterType === "lake"
-                      ? styles.selectedWaterTypeText
-                      : null,
-                  ]}
-                >
-                  Freshwater
-                </ThemedText>
-              </TouchableOpacity>
+        {/* Hiển thị kết quả so sánh */}
+        {selectedFish && comparisonResults.length > 0 && (
+          <ThemedView style={styles.dataCard}>
+            <ThemedView style={styles.cardHeader}>
+              <IconSymbol name="checkmark.shield" size={20} color="#0a7ea4" />
+              <ThemedText type="subtitle">Compatibility Analysis</ThemedText>
+            </ThemedView>
 
-              <TouchableOpacity
-                style={[
-                  styles.waterTypeButton,
-                  pondWaterType === "ocean" ? styles.selectedWaterType : null,
-                ]}
-                onPress={() => setPondWaterType("ocean")}
-              >
-                <ThemedText
+            <ThemedView style={styles.comparisonResults}>
+              {comparisonResults.map((result, index) => (
+                <ThemedView
+                  key={index}
                   style={[
-                    styles.waterTypeText,
-                    pondWaterType === "ocean"
-                      ? styles.selectedWaterTypeText
-                      : null,
+                    styles.comparisonItem,
+                    result.severity === "warning" && styles.warningItem,
+                    result.severity === "danger" && styles.dangerItem,
                   ]}
                 >
-                  Saltwater
-                </ThemedText>
-              </TouchableOpacity>
+                  <ThemedView style={styles.comparisonHeader}>
+                    <IconSymbol
+                      name={
+                        result.severity === "good"
+                          ? "checkmark.circle.fill"
+                          : result.severity === "warning"
+                          ? "exclamationmark.triangle.fill"
+                          : "xmark.octagon.fill"
+                      }
+                      size={18}
+                      color={
+                        result.severity === "good"
+                          ? "#16a34a"
+                          : result.severity === "warning"
+                          ? "#ea580c"
+                          : "#dc2626"
+                      }
+                    />
+                    <ThemedText style={styles.comparisonParameter}>
+                      {result.parameter}
+                    </ThemedText>
+                  </ThemedView>
+                  <ThemedText style={styles.comparisonMessage}>
+                    {result.message}
+                  </ThemedText>
+                </ThemedView>
+              ))}
             </ThemedView>
           </ThemedView>
-
-          <ThemedView style={styles.parameterItem}>
-            <ThemedText style={styles.parameterLabel}>
-              Temperature (°C):
-            </ThemedText>
-            <ThemedText style={styles.parameterValue}>
-              {pondParameters.temperature.toFixed(1)}
-            </ThemedText>
-          </ThemedView>
-
-          <ThemedView style={styles.parameterItem}>
-            <ThemedText style={styles.parameterLabel}>TDS (ppm):</ThemedText>
-            <ThemedText style={styles.parameterValue}>
-              {pondParameters.tds.toFixed(0)}
-            </ThemedText>
-          </ThemedView>
-
-          <ThemedView style={styles.parameterItem}>
-            <ThemedText style={styles.parameterLabel}>
-              Turbidity (%):
-            </ThemedText>
-            <ThemedText style={styles.parameterValue}>
-              {pondParameters.turbidity.toFixed(1)}
-            </ThemedText>
-          </ThemedView>
-        </ThemedView>
-
-        <Button
-          label="Refresh Data"
-          type="primary"
-          size="medium"
-          onPress={refreshPondData}
-          style={styles.refreshButton}
-        />
+        )}
       </ThemedView>
-
-      {/* Comparison Results */}
-      {selectedFish && comparisonResults.length > 0 && (
-        <ThemedView style={styles.comparisonCard}>
-          <ThemedView style={styles.cardHeader}>
-            <IconSymbol name="molecule" size={20} color="#0a7ea4" />
-            <ThemedText type="subtitle">Comparison Results</ThemedText>
-          </ThemedView>
-
-          {comparisonResults.map((result, index) => (
-            <ThemedView
-              key={index}
-              style={[
-                styles.comparisonItem,
-                result.severity === "good"
-                  ? styles.matchingParameter
-                  : styles.mismatchParameter,
-              ]}
-            >
-              <ThemedView style={styles.comparisonStatus}>
-                {result.severity === "good" ? (
-                  <IconSymbol name="water" size={16} color="#22c55e" />
-                ) : (
-                  <IconSymbol name="water" size={16} color="#dc2626" />
-                )}
-              </ThemedView>
-              <ThemedView style={styles.comparisonDetails}>
-                <ThemedText style={styles.comparisonParameter}>
-                  {result.parameter}
-                </ThemedText>
-                <ThemedText
-                  style={{
-                    ...styles.comparisonMessage,
-                    ...(result.severity === "good"
-                      ? styles.matchingText
-                      : styles.mismatchText),
-                  }}
-                >
-                  {result.message}
-                </ThemedText>
-              </ThemedView>
-            </ThemedView>
-          ))}
-        </ThemedView>
-      )}
-    </ThemedView>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  // Styles remain unchanged
+  // Giữ nguyên styles từ component cũ
   container: {
+    flex: 1,
+    padding: 16,
+  },
+  searchCard: {
+    marginBottom: 16,
     padding: 16,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     borderColor: "#e5e5e5",
-    marginBottom: 24,
-    backgroundColor: "rgba(0,0,0,0)",
   },
-  sectionHeader: {
+  cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
     marginBottom: 16,
-  },
-  sectionTitle: {
-    marginBottom: 0,
+    gap: 8,
   },
   searchContainer: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 8,
   },
   searchInput: {
     flex: 1,
@@ -579,51 +759,53 @@ const styles = StyleSheet.create({
     borderColor: "#e5e5e5",
     borderRadius: BorderRadius.md,
     paddingHorizontal: 12,
-    backgroundColor: "#fff",
+    marginRight: 8,
   },
-  searchSpinner: {
-    position: "absolute",
-    right: 12,
-  },
-  searchResultsContainer: {
-    marginBottom: 16,
-    maxHeight: 200,
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
+  searchButton: {
+    backgroundColor: "#0a7ea4",
+    paddingHorizontal: 16,
+    justifyContent: "center",
     borderRadius: BorderRadius.md,
-    backgroundColor: "#fff",
   },
-  searchResultsList: {
-    padding: 8,
+  searchButtonText: {
+    color: "#fff",
+    fontWeight: "600",
   },
-  searchResultItem: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f5f5f5",
-  },
-  noResultsText: {
-    padding: 16,
-    textAlign: "center",
-    fontStyle: "italic",
-    opacity: 0.7,
-  },
-  dataCard: {
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
-    backgroundColor: "rgba(112, 182, 189, 0.5)",
-    padding: 16,
-    marginBottom: 16,
-  },
-  cardHeader: {
+  loadingContainer: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
-    marginBottom: 12,
+    padding: 16,
+  },
+  resultsList: {
+    maxHeight: 200,
+    marginTop: 8,
+  },
+  resultItem: {
+    padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-    paddingBottom: 8,
+    borderBottomColor: "#e5e5e5",
+  },
+  resultName: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  resultDetail: {
+    fontSize: 14,
+    color: "#666",
+  },
+  noResultsContainer: {
+    padding: 16,
+    alignItems: "center",
+  },
+  dataCard: {
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: "#e5e5e5",
   },
   parametersList: {
     gap: 8,
@@ -631,86 +813,54 @@ const styles = StyleSheet.create({
   parameterItem: {
     flexDirection: "row",
     justifyContent: "space-between",
-    padding: 8,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: "rgba(0, 0, 0, 0)",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
   },
   parameterLabel: {
-    fontWeight: "500",
+    fontSize: 14,
+    color: "#666",
   },
   parameterValue: {
+    fontSize: 14,
     fontWeight: "600",
   },
   refreshButton: {
-    marginTop: 12,
+    marginTop: 16,
   },
-  comparisonCard: {
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
-    backgroundColor: "rgba(0, 0, 0, 0)",
-    padding: 16,
+  comparisonResults: {
+    gap: 8,
   },
   comparisonItem: {
-    flexDirection: "row",
-    borderRadius: BorderRadius.md,
+    backgroundColor: "#f0f9ff",
     padding: 12,
-    marginBottom: 8,
-    alignItems: "flex-start",
+    borderRadius: BorderRadius.md,
+    borderLeftWidth: 4,
+    borderLeftColor: "#0a7ea4",
   },
-  matchingParameter: {
-    backgroundColor: "rgba(34, 197, 94, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.2)",
+  warningItem: {
+    backgroundColor: "#fff7ed",
+    borderLeftColor: "#ea580c",
   },
-  mismatchParameter: {
-    backgroundColor: "rgba(220, 38, 38, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(220, 38, 38, 0.2)",
+  dangerItem: {
+    backgroundColor: "#fef2f2",
+    borderLeftColor: "#dc2626",
   },
-  comparisonStatus: {
-    marginRight: 12,
-    marginTop: 2,
-  },
-  comparisonDetails: {
-    flex: 1,
-  },
-  comparisonParameter: {
-    fontWeight: "600",
+  comparisonHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     marginBottom: 4,
   },
-  comparisonMessage: {
+  comparisonParameter: {
     fontSize: 14,
+    fontWeight: "600",
   },
-  matchingText: {
-    color: "#22c55e",
-  },
-  mismatchText: {
-    color: "#dc2626",
-  },
-  goodParameter: {
-    backgroundColor: "rgba(34, 197, 94, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.2)",
-  },
-  warningParameter: {
-    backgroundColor: "rgba(245, 158, 11, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.2)",
-  },
-  dangerParameter: {
-    backgroundColor: "rgba(220, 38, 38, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(220, 38, 38, 0.2)",
-  },
-  goodText: {
-    color: "#22c55e",
-  },
-  warningText: {
-    color: "#f59e0b",
-  },
-  dangerText: {
-    color: "#dc2626",
+  comparisonMessage: {
+    fontSize: 13,
+    color: "#333",
+    paddingLeft: 26,
   },
   waterTypeSelector: {
     flexDirection: "row",
@@ -734,5 +884,43 @@ const styles = StyleSheet.create({
   selectedWaterTypeText: {
     color: "#fff",
     fontWeight: "600",
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  dimensionsContainer: {
+    gap: 16,
+  },
+  dimensionInputRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  dimensionInputGroup: {
+    flex: 1,
+  },
+  dimensionLabel: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 4,
+  },
+  dimensionInput: {
+    borderWidth: 1,
+    borderColor: "#e5e5e5",
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 16,
+  },
+  dimensionButton: {
+    marginTop: 8,
+  },
+  volumeDisplay: {
+    justifyContent: "center",
+  },
+  volumeValue: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#0a7ea4",
   },
 });
