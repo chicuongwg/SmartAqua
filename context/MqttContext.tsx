@@ -7,19 +7,21 @@ import React, {
 } from "react";
 import mqtt from "@taoqf/react-native-mqtt";
 import { Alert } from "react-native";
+import { DataPoint } from "@/components/DataGraph"; // Import DataPoint type
 
 // MQTT Configuration
 const MQTT_URL =
   "wss://abdaef3e94154ecdb21371e844ac801c.s1.eu.hivemq.cloud:8884/mqtt";
 const MQTT_USERNAME = "ChiCuong";
 const MQTT_PASSWORD = "TestIoT123";
+const MAX_HISTORY_LENGTH = 1000; // Limit the number of points stored
 
 // Standard data type
 export type AquariumData = {
   temperature: number;
   tds: number;
   turbidity: number;
-  ph: number; // Thêm pH vào dữ liệu tiêu chuẩn
+  ph: number;
 };
 
 // Message type
@@ -28,12 +30,17 @@ export type MqttMessage = {
   message: string;
 };
 
-// Context type
+// Context type - Add history arrays
 interface MqttContextType {
   isConnected: boolean;
   messages: MqttMessage[];
   error: Error | null;
   aquariumData: AquariumData;
+  // Add history arrays to the context type
+  temperatureHistory: DataPoint[];
+  phHistory: DataPoint[];
+  tdsHistory: DataPoint[];
+  turbidityHistory: DataPoint[];
   connect: () => void;
   disconnect: () => void;
   publishMessage: (topic: string, message: string) => void;
@@ -56,7 +63,7 @@ export const MqttProvider: React.FC<{ children: React.ReactNode }> = ({
   const [error, setError] = useState<Error | null>(null);
   const [waterType, setWaterType] = useState<"lake" | "ocean">("lake");
 
-  // Aquarium data state
+  // Aquarium data state (latest values)
   const [aquariumData, setAquariumData] = useState<AquariumData>({
     temperature: 0,
     tds: 0,
@@ -64,8 +71,32 @@ export const MqttProvider: React.FC<{ children: React.ReactNode }> = ({
     ph: 0.0,
   });
 
+  // --- START: Add State for History Arrays ---
+  const [temperatureHistory, setTemperatureHistory] = useState<DataPoint[]>([]);
+  const [phHistory, setPhHistory] = useState<DataPoint[]>([]);
+  const [tdsHistory, setTdsHistory] = useState<DataPoint[]>([]);
+  const [turbidityHistory, setTurbidityHistory] = useState<DataPoint[]>([]);
+  // --- END: Add State for History Arrays ---
+
+  // Helper function to add data point and limit history size
+  const addDataPoint = (
+    setter: React.Dispatch<React.SetStateAction<DataPoint[]>>,
+    value: number
+  ) => {
+    const newPoint: DataPoint = { timestamp: Date.now(), value: value };
+    setter((prevHistory) => {
+      const updatedHistory = [...prevHistory, newPoint];
+      // Limit history length
+      if (updatedHistory.length > MAX_HISTORY_LENGTH) {
+        return updatedHistory.slice(updatedHistory.length - MAX_HISTORY_LENGTH);
+      }
+      return updatedHistory;
+    });
+  };
+
   // Connect to MQTT broker
   const connect = () => {
+    // ... (connect logic remains the same) ...
     if (clientRef.current) {
       console.log("MQTT client already exists, reconnecting...");
       clientRef.current.reconnect();
@@ -131,86 +162,89 @@ export const MqttProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Process incoming MQTT messages
+  // Process incoming MQTT messages - Modified to update history
   const processMessage = (topic: string, message: string) => {
+    const timestamp = Date.now(); // Get timestamp once
+
     // First, try to parse ESP32 sensor data format (text format)
     if (topic === "esp32/sensor/data") {
       try {
+        // Updated regex to potentially capture pH if included
         const matches = message.match(
-          /Temp:\s*([\d.]+)\s*C,\s*TDS:\s*([\d.]+)\s*ppm,\s*Turbidity:\s*([\d.]+)\s*%/
+          /Temp:\s*([\d.]+)\s*C,\s*TDS:\s*([\d.]+)\s*ppm,\s*Turbidity:\s*([\d.]+)\s*%(?:,\s*pH:\s*([\d.]+))?/ // Make pH optional
         );
 
         if (matches) {
           const temperature = parseFloat(matches[1]);
           const tds = parseFloat(matches[2]);
           const turbidity = parseFloat(matches[3]);
+          const ph = matches[4] ? parseFloat(matches[4]) : aquariumData.ph; // Use captured pH or keep previous
 
+          // Update latest data state
           setAquariumData((prevData) => ({
             ...prevData,
             temperature,
             tds,
             turbidity,
+            ph, // Update pH as well
           }));
 
-          console.log("✅ Parsed sensor data:", {
+          // --- Add to history ---
+          if (!isNaN(temperature))
+            addDataPoint(setTemperatureHistory, temperature);
+          if (!isNaN(tds)) addDataPoint(setTdsHistory, tds);
+          if (!isNaN(turbidity)) addDataPoint(setTurbidityHistory, turbidity);
+          if (matches[4] && !isNaN(ph)) addDataPoint(setPhHistory, ph); // Add pH history if present
+
+          console.log("✅ Parsed ESP32 sensor data:", {
             temperature,
             tds,
             turbidity,
+            ph,
           });
-          return;
+          return; // Exit after processing combined message
         }
       } catch (err) {
         console.error("❌ Failed to parse ESP32 sensor data:", err);
       }
     }
 
-    // Try to parse individual topic data (JSON format)
+    // Try to parse individual topic data (JSON format or plain number)
+    let value: number | undefined = undefined;
     try {
       const jsonData = JSON.parse(message);
-
-      if (topic === "smart-aqua/temp" && jsonData.value !== undefined) {
-        setAquariumData((prev) => ({
-          ...prev,
-          temperature: parseFloat(jsonData.value),
-        }));
-      } else if (topic === "smart-aqua/ph" && jsonData.value !== undefined) {
-        setAquariumData((prev) => ({
-          ...prev,
-          ph: parseFloat(jsonData.value),
-        }));
-      } else if (topic === "smart-aqua/tds" && jsonData.value !== undefined) {
-        setAquariumData((prev) => ({
-          ...prev,
-          tds: parseFloat(jsonData.value),
-        }));
-      } else if (
-        topic === "smart-aqua/turbidity" &&
-        jsonData.value !== undefined
-      ) {
-        setAquariumData((prev) => ({
-          ...prev,
-          turbidity: parseFloat(jsonData.value),
-        }));
+      if (jsonData.value !== undefined) {
+        value = parseFloat(jsonData.value);
       }
     } catch (err) {
-      // Not JSON format, try direct parsing
-      const value = parseFloat(message);
-      if (!isNaN(value)) {
-        if (topic === "smart-aqua/temp") {
-          setAquariumData((prev) => ({ ...prev, temperature: value }));
-        } else if (topic === "smart-aqua/ph") {
-          setAquariumData((prev) => ({ ...prev, ph: value }));
-        } else if (topic === "smart-aqua/tds") {
-          setAquariumData((prev) => ({ ...prev, tds: value }));
-        } else if (topic === "smart-aqua/turbidity") {
-          setAquariumData((prev) => ({ ...prev, turbidity: value }));
-        }
-      }
+      // Not JSON or JSON without 'value', try parsing as plain number
+      value = parseFloat(message);
+    }
+
+    if (value === undefined || isNaN(value)) {
+      console.warn(`⚠️ Could not parse value from topic ${topic}:`, message);
+      return; // Cannot process if value is not a valid number
+    }
+
+    // Update specific parameter based on topic
+    if (topic === "smart-aqua/temp") {
+      setAquariumData((prev) => ({ ...prev, temperature: value }));
+      addDataPoint(setTemperatureHistory, value); // Add to history
+    } else if (topic === "smart-aqua/ph") {
+      setAquariumData((prev) => ({ ...prev, ph: value }));
+      addDataPoint(setPhHistory, value); // Add to history
+    } else if (topic === "smart-aqua/tds") {
+      setAquariumData((prev) => ({ ...prev, tds: value }));
+      addDataPoint(setTdsHistory, value); // Add to history
+    } else if (topic === "smart-aqua/turbidity") {
+      setAquariumData((prev) => ({ ...prev, turbidity: value }));
+      addDataPoint(setTurbidityHistory, value); // Add to history
     }
   };
 
   // Disconnect from MQTT broker
   const disconnect = () => {
+    // ... (disconnect logic remains the same) ...
     if (clientRef.current) {
       clientRef.current.end(true, () => {
         console.log("🔌 MQTT client disconnected cleanly");
@@ -224,6 +258,7 @@ export const MqttProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Publish message to a topic
   const publishMessage = (topic: string, message: string) => {
+    // ... (publishMessage logic remains the same) ...
     if (!isConnected || !clientRef.current) {
       console.error("❌ Cannot publish: MQTT client not connected");
       Alert.alert("Error", "MQTT client not connected");
@@ -241,6 +276,7 @@ export const MqttProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Subscribe to a topic
   const subscribeToTopic = (topic: string) => {
+    // ... (subscribeToTopic logic remains the same) ...
     if (!isConnected || !clientRef.current) {
       console.error("❌ Cannot subscribe: MQTT client not connected");
       return;
@@ -259,25 +295,32 @@ export const MqttProvider: React.FC<{ children: React.ReactNode }> = ({
   // Clear message history
   const clearMessages = () => {
     setMessages([]);
+    // Optionally clear historical data too if needed
+    // setTemperatureHistory([]);
+    // setPhHistory([]);
+    // setTdsHistory([]);
+    // setTurbidityHistory([]);
   };
 
   // Auto-connect on component mount
   useEffect(() => {
     connect();
-
-    // Clean up on unmount
     return () => {
-      if (clientRef.current) {
-        disconnect();
-      }
+      disconnect(); // Ensure disconnect is called on unmount
     };
-  }, []);
+  }, []); // Empty dependency array ensures connect/disconnect run once
 
+  // --- Update contextValue to include history arrays ---
   const contextValue: MqttContextType = {
     isConnected,
     messages,
     error,
     aquariumData,
+    // Add history arrays here
+    temperatureHistory,
+    phHistory,
+    tdsHistory,
+    turbidityHistory,
     connect,
     disconnect,
     publishMessage,
@@ -295,10 +338,8 @@ export const MqttProvider: React.FC<{ children: React.ReactNode }> = ({
 // Custom hook to use MQTT context
 export const useMqtt = () => {
   const context = useContext(MqttContext);
-
   if (!context) {
     throw new Error("useMqtt must be used within an MqttProvider");
   }
-
   return context;
 };
