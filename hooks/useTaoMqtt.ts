@@ -7,7 +7,8 @@ type Message = {
 };
 
 export function useTaoMqtt(
-  url: string = "wss://59e6345689bc4f5fafcf56db4088e8c4.s1.eu.hivemq.cloud:8884/mqtt", // hoặc url mặc định của bạn
+  // MQTT structure "wss://(your URL):8884/mqtt"
+  url: string = "wss://abdaef3e94154ecdb21371e844ac801c.s1.eu.hivemq.cloud:8884/mqtt",
   username: string = "",
   options?: { clientId?: string; password?: string }
 ) {

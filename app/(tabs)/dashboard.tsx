@@ -12,20 +12,17 @@ import { DataGraph } from "@/components/DataGraph";
 import AutoFeed from "@/components/AutoFeed";
 import { useTaoMqtt } from "@/hooks/useTaoMqtt";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import MqttConfigPanel from "@/components/MqttConfigPanel";
-import MqttDebugPanel from "@/components/MqttDebugPanel";
 
 type AquariumData = {
   temperature: number;
-  ph: number;
   tds: number;
   turbidity: number;
 };
 
 const MQTT_URL =
-  "wss://59e6345689bc4f5fafcf56db4088e8c4.s1.eu.hivemq.cloud:8884/mqtt"; // ⚠️ thay đổi nếu cần
-const MQTT_USERNAME = "dltmai"; // optional
-const MQTT_PASSWORD = "Dltmai1410"; // optional
+  "wss://abdaef3e94154ecdb21371e844ac801c.s1.eu.hivemq.cloud:8884/mqtt"; // ⚠️ thay đổi nếu cần
+const MQTT_USERNAME = "ChiCuong"; // optional
+const MQTT_PASSWORD = "TestIoT123"; // optional
 
 export default function DashboardScreen() {
   const [data, setData] = useState<AquariumData | null>(null);
@@ -169,12 +166,13 @@ export default function DashboardScreen() {
                 icon="thermometer"
               />
             </ThemedView>
+
             <ThemedView style={styles.gridItem}>
               <DataCard
-                title="pH Level"
-                value={data?.ph}
-                unit="pH"
-                icon="water"
+                title="Turbidity"
+                value={data?.turbidity}
+                unit="NTU"
+                icon="eyedropper"
               />
             </ThemedView>
           </ThemedView>
@@ -186,14 +184,6 @@ export default function DashboardScreen() {
                 value={data?.tds}
                 unit="ppm"
                 icon="molecule"
-              />
-            </ThemedView>
-            <ThemedView style={styles.gridItem}>
-              <DataCard
-                title="Turbidity"
-                value={data?.turbidity}
-                unit="NTU"
-                icon="eyedropper"
               />
             </ThemedView>
           </ThemedView>
@@ -230,35 +220,6 @@ export default function DashboardScreen() {
           labels={["Now"]}
           color="#ff6384"
           unit="°C"
-        />
-      </ThemedView>
-
-      {/* MQTT CONFIG */}
-      <ThemedView style={styles.sectionCard}>
-        <ThemedView style={styles.sectionHeader}>
-          <IconSymbol name="paperplane.fill" size={22} color="#0a7ea4" />
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            MQTT Configuration
-          </ThemedText>
-        </ThemedView>
-        {clientRef.current && (
-          <MqttConfigPanel mqttClient={clientRef.current} />
-        )}
-      </ThemedView>
-
-      {/* MQTT DEBUG */}
-      <ThemedView style={styles.sectionCard}>
-        <ThemedView style={styles.sectionHeader}>
-          <IconSymbol name="ant.circle.fill" size={22} color="#0a7ea4" />
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            MQTT Debug
-          </ThemedText>
-        </ThemedView>
-        <MqttDebugPanel
-          mqttClient={{
-            ...clientRef.current,
-            error: error ? { message: error.message } : undefined,
-          }}
         />
       </ThemedView>
 

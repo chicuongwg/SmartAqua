@@ -18,6 +18,14 @@ import Button from "@/components/Button";
 // Fish template data types
 type WaterType = "lake" | "ocean";
 
+// Simplified aquarium data type - standardized across the app
+type AquariumData = {
+  temperature: number;
+  tds: number;
+  turbidity: number;
+};
+
+// Fish template maintains more detailed parameters
 type FishTemplate = {
   id: string;
   name: string;
@@ -25,16 +33,7 @@ type FishTemplate = {
   turbidity: number;
   ph: number;
   temperature: number;
-  tds: number; // Add this
-};
-
-// Current pond parameters
-type PondParameters = {
-  waterType: WaterType;
-  turbidity: number;
-  ph: number;
-  temperature: number;
-  tds: number; // Add this
+  tds: number;
 };
 
 // Comparison result
@@ -46,140 +45,86 @@ type ComparisonResult = {
   message: string;
 };
 
-// Sample fish database - Replace with API call in production
-const FISH_DATABASE: FishTemplate[] = [
-  {
-    id: "1",
-    name: "Climbing Perch",
-    waterType: "lake",
-    turbidity: 20,
-    ph: 7.0,
-    temperature: 26,
-    tds: 200, // Add this
-  },
-  {
-    id: "2",
-    name: "Common Carp",
-    waterType: "lake",
-    turbidity: 15,
-    ph: 7.2,
-    temperature: 23,
-    tds: 150, // Add this
-  },
-  {
-    id: "3",
-    name: "Salmon",
-    waterType: "lake",
-    turbidity: 5,
-    ph: 6.8,
-    temperature: 15,
-    tds: 100, // Add this
-  },
-  {
-    id: "4",
-    name: "Arowana",
-    waterType: "lake",
-    turbidity: 10,
-    ph: 7.0,
-    temperature: 28,
-    tds: 180, // Add this
-  },
-  {
-    id: "5",
-    name: "Clownfish",
-    waterType: "ocean",
-    turbidity: 5,
-    ph: 8.2,
-    temperature: 26,
-    tds: 300, // Add this
-  },
-  {
-    id: "6",
-    name: "Stingray",
-    waterType: "ocean",
-    turbidity: 10,
-    ph: 8.0,
-    temperature: 25,
-    tds: 250, // Add this
-  },
-];
-
 export default function FishPondDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<FishTemplate[]>([]);
   const [selectedFish, setSelectedFish] = useState<FishTemplate | null>(null);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [pondParameters, setPondParameters] = useState<PondParameters>({
-    waterType: "lake",
-    turbidity: 0,
-    ph: 0,
+
+  // Using the standardized AquariumData type
+  const [pondParameters, setPondParameters] = useState<AquariumData>({
     temperature: 0,
     tds: 0,
+    turbidity: 0,
   });
+
+  // Adding separate state for properties not in AquariumData
+  const [pondPh, setPondPh] = useState<number>(7.0);
+  const [pondWaterType, setPondWaterType] = useState<WaterType>("lake");
+
   const [comparisonResults, setComparisonResults] = useState<
     ComparisonResult[]
   >([]);
 
-  // Subscribe to MQTT topics to get real-time pond data
-  const mqttClient = useTaoMqtt("mqtt://broker.hivemq.com:1883", "", {
-    clientId: `fish-pond-dash-${Math.random().toString(16).slice(2, 8)}`,
-  });
+  // Update the MQTT configuration to match dashboard.tsx
+  const mqttClient = useTaoMqtt(
+    "wss://abdaef3e94154ecdb21371e844ac801c.s1.eu.hivemq.cloud:8884/mqtt",
+    "ChiCuong",
+    {
+      clientId: `fish-pond-dash-${Math.random().toString(16).slice(2, 8)}`,
+      password: "TestIoT123",
+    }
+  );
 
-  // Subscribe to topics when connected
+  // Subscribe to the same topic that works in dashboard.tsx
   useEffect(() => {
-    if (mqttClient.isConnected) {
-      mqttClient.subscribe("smart-aqua/temp");
-      mqttClient.subscribe("smart-aqua/ph");
-      mqttClient.subscribe("smart-aqua/tds");
-      mqttClient.subscribe("smart-aqua/turbidity");
+    if (mqttClient.isConnected && mqttClient.clientRef.current) {
+      mqttClient.clientRef.current.subscribe("esp32/sensor/data");
+      console.log("📡 Subscribed to topic: esp32/sensor/data");
     }
   }, [mqttClient.isConnected]);
 
-  // Process MQTT messages to update pond parameters
+  // Update the message handling to use the same format as dashboard.tsx
   useEffect(() => {
     if (mqttClient.messages.length > 0) {
-      const newData = { ...pondParameters };
-
       const latestMessages = mqttClient.messages.slice(-10);
       latestMessages.forEach((msg) => {
-        try {
-          // Try to parse as JSON first
-          const jsonData = JSON.parse(msg.message);
+        if (msg.topic === "esp32/sensor/data") {
+          const msgStr = msg.message;
+          console.log("📩 Raw MQTT message in FishPond:", msgStr);
 
-          // Handle JSON format
-          if (msg.topic === "smart-aqua/temp" && jsonData.value !== undefined) {
-            newData.temperature = parseFloat(jsonData.value);
-          } else if (
-            msg.topic === "smart-aqua/ph" &&
-            jsonData.value !== undefined
-          ) {
-            newData.ph = parseFloat(jsonData.value);
-          } else if (
-            msg.topic === "smart-aqua/tds" &&
-            jsonData.value !== undefined
-          ) {
-            newData.tds = parseFloat(jsonData.value);
-          } else if (
-            msg.topic === "smart-aqua/turbidity" &&
-            jsonData.value !== undefined
-          ) {
-            newData.turbidity = parseFloat(jsonData.value);
-          }
-        } catch (e) {
-          // Fallback to plain string parsing if JSON fails
-          const value = parseFloat(msg.message);
-          if (!isNaN(value)) {
-            if (msg.topic === "smart-aqua/temp") newData.temperature = value;
-            else if (msg.topic === "smart-aqua/ph") newData.ph = value;
-            else if (msg.topic === "smart-aqua/tds") newData.tds = value;
-            else if (msg.topic === "smart-aqua/turbidity")
-              newData.turbidity = value;
+          try {
+            // Use the same parsing logic as dashboard.tsx
+            const matches = msgStr.match(
+              /Temp:\s*([\d.]+)\s*C,\s*TDS:\s*([\d.]+)\s*ppm,\s*Turbidity:\s*([\d.]+)\s*%/
+            );
+
+            if (matches) {
+              const temperature = parseFloat(matches[1]);
+              const tds = parseFloat(matches[2]);
+              const turbidity = parseFloat(matches[3]);
+
+              // Update AquariumData with the values
+              setPondParameters({
+                temperature,
+                tds,
+                turbidity,
+              });
+
+              console.log("✅ Parsed sensor data in FishPond:", {
+                temperature,
+                tds,
+                turbidity,
+              });
+            } else {
+              console.warn("⚠️ Couldn't parse data from string:", msgStr);
+            }
+          } catch (err) {
+            console.error("❌ Failed to parse sensor data:", err);
           }
         }
       });
-
-      setPondParameters(newData);
     }
   }, [mqttClient.messages]);
 
@@ -249,19 +194,17 @@ export default function FishPondDashboard() {
     // Compare water type - binary match/no match (no middle ground for water type)
     results.push({
       parameter: "Water Type",
-      severity: fish.waterType === pondParameters.waterType ? "good" : "danger",
+      severity: fish.waterType === pondWaterType ? "good" : "danger",
       message:
-        fish.waterType === pondParameters.waterType
+        fish.waterType === pondWaterType
           ? "Water type is suitable"
           : `${fish.name} requires ${translateWaterType(
               fish.waterType
-            )}, current pond is ${translateWaterType(
-              pondParameters.waterType
-            )}`,
+            )}, current pond is ${translateWaterType(pondWaterType)}`,
     });
 
     // Compare pH - 3 levels
-    const phDifference = Math.abs(fish.ph - pondParameters.ph);
+    const phDifference = Math.abs(fish.ph - pondPh);
     let phSeverity: SeverityLevel = "good";
     let phMessage = "pH level is suitable";
 
@@ -269,12 +212,12 @@ export default function FishPondDashboard() {
       phSeverity = "warning";
       phMessage = `${fish.name} prefers pH ${
         fish.ph
-      }, current pond is ${pondParameters.ph.toFixed(1)} (consider adjusting)`;
+      }, current pond is ${pondPh.toFixed(1)} (consider adjusting)`;
     } else if (phDifference > 1.0) {
       phSeverity = "danger";
       phMessage = `${fish.name} requires pH ${
         fish.ph
-      }, current pond is ${pondParameters.ph.toFixed(1)} (critical mismatch)`;
+      }, current pond is ${pondPh.toFixed(1)} (critical mismatch)`;
     }
 
     results.push({
@@ -373,13 +316,22 @@ export default function FishPondDashboard() {
 
   // Refresh pond data
   const refreshPondData = () => {
-    if (!mqttClient.isConnected) {
-      mqttClient.connect();
-    }
+    try {
+      // Rather than trying to call connect(),
+      // end the current connection and let the hook reconnect automatically
+      if (!mqttClient.isConnected && mqttClient.clientRef.current) {
+        // End the connection (this will trigger automatic reconnection)
+        mqttClient.clientRef.current.end(false, () => {
+          console.log("MQTT client ended, auto-reconnecting...");
+        });
+      }
 
-    // If a fish is selected, re-compare after refresh
-    if (selectedFish) {
-      compareParameters(selectedFish);
+      // Force update comparison if a fish is selected
+      if (selectedFish) {
+        compareParameters(selectedFish);
+      }
+    } catch (error) {
+      console.error("Error refreshing connection:", error);
     }
   };
 
@@ -412,69 +364,6 @@ export default function FishPondDashboard() {
         )}
       </ThemedView>
 
-      {/* Search Results */}
-      {showSearchResults && (
-        <ThemedView style={styles.searchResultsContainer}>
-          {!searchResults || Object.keys(searchResults).length === 0 ? (
-            <ThemedText style={[styles.noResultsText, { color: "#000" }]}>
-              No fish species found
-            </ThemedText>
-          ) : (
-            <ScrollView
-              style={styles.searchResultsList}
-              nestedScrollEnabled={true}
-            >
-              <TouchableOpacity
-                style={styles.searchResultItem}
-                onPress={() => selectFish(searchResults)}
-              >
-                <ThemedText style={{ color: "#000" }}>
-                  <ThemedText style={{ fontWeight: "bold", color: "#000" }}>
-                    Fish Name:
-                  </ThemedText>{" "}
-                  {searchResults["Fish Name"]}
-                </ThemedText>
-
-                <ThemedText style={{ color: "#000" }}>
-                  <ThemedText style={{ fontWeight: "bold", color: "#000" }}>
-                    Aggression:
-                  </ThemedText>{" "}
-                  {searchResults["Aggression"]}
-                </ThemedText>
-
-                <ThemedText style={{ color: "#000" }}>
-                  <ThemedText style={{ fontWeight: "bold", color: "#000" }}>
-                    Breeding Difficulty:
-                  </ThemedText>{" "}
-                  {searchResults["Breeding Difficulty"]}
-                </ThemedText>
-
-                <ThemedText style={{ color: "#000" }}>
-                  <ThemedText style={{ fontWeight: "bold", color: "#000" }}>
-                    Minimum Tank Size:
-                  </ThemedText>{" "}
-                  {searchResults["Minimum Tank Size"]}
-                </ThemedText>
-
-                <ThemedText style={{ color: "#000" }}>
-                  <ThemedText style={{ fontWeight: "bold", color: "#000" }}>
-                    Temperature:
-                  </ThemedText>{" "}
-                  {searchResults["Temperature"]}
-                </ThemedText>
-
-                <ThemedText style={{ color: "#000" }}>
-                  <ThemedText style={{ fontWeight: "bold", color: "#000" }}>
-                    pH Range:
-                  </ThemedText>{" "}
-                  {searchResults["pH Range"]}
-                </ThemedText>
-              </TouchableOpacity>
-            </ScrollView>
-          )}
-        </ThemedView>
-      )}
-
       {/* Selected Fish Template */}
       {selectedFish && (
         <ThemedView style={styles.dataCard}>
@@ -499,13 +388,6 @@ export default function FishPondDashboard() {
               </ThemedText>
               <ThemedText style={styles.parameterValue}>
                 {selectedFish.temperature}
-              </ThemedText>
-            </ThemedView>
-
-            <ThemedView style={styles.parameterItem}>
-              <ThemedText style={styles.parameterLabel}>pH:</ThemedText>
-              <ThemedText style={styles.parameterValue}>
-                {selectedFish.ph}
               </ThemedText>
             </ThemedView>
 
@@ -542,9 +424,45 @@ export default function FishPondDashboard() {
         <ThemedView style={styles.parametersList}>
           <ThemedView style={styles.parameterItem}>
             <ThemedText style={styles.parameterLabel}>Water Type:</ThemedText>
-            <ThemedText style={styles.parameterValue}>
-              {translateWaterType(pondParameters.waterType)}
-            </ThemedText>
+            <ThemedView style={styles.waterTypeSelector}>
+              <TouchableOpacity
+                style={[
+                  styles.waterTypeButton,
+                  pondWaterType === "lake" ? styles.selectedWaterType : null,
+                ]}
+                onPress={() => setPondWaterType("lake")}
+              >
+                <ThemedText
+                  style={[
+                    styles.waterTypeText,
+                    pondWaterType === "lake"
+                      ? styles.selectedWaterTypeText
+                      : null,
+                  ]}
+                >
+                  Freshwater
+                </ThemedText>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.waterTypeButton,
+                  pondWaterType === "ocean" ? styles.selectedWaterType : null,
+                ]}
+                onPress={() => setPondWaterType("ocean")}
+              >
+                <ThemedText
+                  style={[
+                    styles.waterTypeText,
+                    pondWaterType === "ocean"
+                      ? styles.selectedWaterTypeText
+                      : null,
+                  ]}
+                >
+                  Saltwater
+                </ThemedText>
+              </TouchableOpacity>
+            </ThemedView>
           </ThemedView>
 
           <ThemedView style={styles.parameterItem}>
@@ -553,13 +471,6 @@ export default function FishPondDashboard() {
             </ThemedText>
             <ThemedText style={styles.parameterValue}>
               {pondParameters.temperature.toFixed(1)}
-            </ThemedText>
-          </ThemedView>
-
-          <ThemedView style={styles.parameterItem}>
-            <ThemedText style={styles.parameterLabel}>pH:</ThemedText>
-            <ThemedText style={styles.parameterValue}>
-              {pondParameters.ph.toFixed(1)}
             </ThemedText>
           </ThemedView>
 
@@ -800,5 +711,28 @@ const styles = StyleSheet.create({
   },
   dangerText: {
     color: "#dc2626",
+  },
+  waterTypeSelector: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  waterTypeButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: "#e5e5e5",
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+  },
+  selectedWaterType: {
+    backgroundColor: "#0a7ea4",
+    borderColor: "#0a7ea4",
+  },
+  waterTypeText: {
+    fontSize: 14,
+  },
+  selectedWaterTypeText: {
+    color: "#fff",
+    fontWeight: "600",
   },
 });
