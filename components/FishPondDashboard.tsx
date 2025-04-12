@@ -9,12 +9,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  useColorScheme, // 1. Import useColorScheme
 } from "react-native";
 import { ThemedView } from "./ThemedView";
 import { ThemedText } from "./ThemedText";
-import Button from "./Button"; // ALERT: Using custom Button component.
+import Button from "./Button";
 import { IconSymbol } from "./ui/IconSymbol";
 import { useMqtt } from "@/context/MqttContext"; // IMPORTANT: Using global MQTT context
+import { Colors } from "@/constants/Colors"; // 1. Import your Colors constant
 
 // Define BorderRadius constants locally
 const BorderRadius = {
@@ -60,6 +62,8 @@ const RECOMMENDATION_API_URL =
   "https://smartaquarium-jmlc.onrender.com/fish-rcm";
 
 export default function FishPondDashboard() {
+  const colorScheme = useColorScheme() ?? "light"; // 2. Get the current theme
+
   // --- State Variables ---
   const [searchQuery, setSearchQuery] = useState("");
   // IMPORTANT: Holds results from the recommendation API (RecommendedFish[])
@@ -75,7 +79,6 @@ export default function FishPondDashboard() {
   const [tankWidth, setTankWidth] = useState<string>("");
   const [tankHeight, setTankHeight] = useState<string>("");
   const [tankVolume, setTankVolume] = useState<number>(0);
-  // ALERT: State variable 'showDimensionInputs' is declared but never used.
   const [showDimensionInputs, setShowDimensionInputs] =
     useState<boolean>(false);
   // --- End State Variables ---
@@ -342,7 +345,7 @@ export default function FishPondDashboard() {
       {/* IMPORTANT: Section for users to input tank size for recommendations */}
       <ThemedView style={styles.searchCard}>
         <ThemedView style={styles.cardHeader}>
-          <IconSymbol name="cube" size={20} color="#0a7ea4" />
+          <IconSymbol name="cube" size={20} color={Colors[colorScheme].tint} />
           <ThemedText type="subtitle">Find Fish by Tank Size</ThemedText>
         </ThemedView>
         <ThemedView style={styles.dimensionsContainer}>
@@ -351,21 +354,29 @@ export default function FishPondDashboard() {
             <ThemedView style={styles.dimensionInputGroup}>
               <ThemedText style={styles.dimensionLabel}>Length (cm)</ThemedText>
               <TextInput
-                style={styles.dimensionInput}
+                style={[
+                  styles.dimensionInput,
+                  { color: Colors[colorScheme].text }, // 3. Apply theme text color
+                ]}
                 value={tankLength}
                 onChangeText={setTankLength}
                 keyboardType="numeric"
                 placeholder="0.0"
+                placeholderTextColor={Colors[colorScheme].textSecondary} // Also theme placeholder
               />
             </ThemedView>
             <ThemedView style={styles.dimensionInputGroup}>
               <ThemedText style={styles.dimensionLabel}>Width (cm)</ThemedText>
               <TextInput
-                style={styles.dimensionInput}
+                style={[
+                  styles.dimensionInput,
+                  { color: Colors[colorScheme].text }, // 3. Apply theme text color
+                ]}
                 value={tankWidth}
                 onChangeText={setTankWidth}
                 keyboardType="numeric"
                 placeholder="0.0"
+                placeholderTextColor={Colors[colorScheme].textSecondary} // Also theme placeholder
               />
             </ThemedView>
           </ThemedView>
@@ -375,11 +386,15 @@ export default function FishPondDashboard() {
                 Water Height (cm)
               </ThemedText>
               <TextInput
-                style={styles.dimensionInput}
+                style={[
+                  styles.dimensionInput,
+                  { color: Colors[colorScheme].text }, // 3. Apply theme text color
+                ]}
                 value={tankHeight}
                 onChangeText={setTankHeight}
                 keyboardType="numeric"
                 placeholder="0.0"
+                placeholderTextColor={Colors[colorScheme].textSecondary} // Also theme placeholder
               />
             </ThemedView>
             <ThemedView
@@ -797,7 +812,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 16,
-    color: "#fff",
   },
   dimensionButton: {
     marginTop: 8,

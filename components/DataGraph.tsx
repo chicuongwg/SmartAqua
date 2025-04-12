@@ -20,15 +20,13 @@ export type DataPoint = {
 };
 
 // Define available time intervals
-type TimeInterval = "5m" | "15m" | "30m" | "1h" | "8h" | "1d" | "1w";
+type TimeInterval = "1m" | "5m" | "15m" | "1h" | "3h"; // Updated type
 const intervals: { key: TimeInterval; label: string; durationMs: number }[] = [
-  { key: "5m", label: "5m", durationMs: 5 * 60 * 1000 },
-  { key: "15m", label: "15m", durationMs: 15 * 60 * 1000 },
-  { key: "30m", label: "30m", durationMs: 30 * 60 * 1000 },
-  { key: "1h", label: "1h", durationMs: 60 * 60 * 1000 },
-  { key: "8h", label: "8h", durationMs: 8 * 60 * 60 * 1000 },
-  { key: "1d", label: "1d", durationMs: 24 * 60 * 60 * 1000 },
-  { key: "1w", label: "1w", durationMs: 7 * 24 * 60 * 60 * 1000 },
+  { key: "1m", label: "1 min", durationMs: 1 * 60 * 1000 }, // Added 1 minute
+  { key: "5m", label: "5 min", durationMs: 5 * 60 * 1000 }, // Kept 5 minutes
+  { key: "15m", label: "15 min", durationMs: 15 * 60 * 1000 }, // Kept 15 minutes
+  { key: "1h", label: "1 hour", durationMs: 60 * 60 * 1000 }, // Kept 1 hour
+  { key: "3h", label: "3 hours", durationMs: 3 * 60 * 60 * 1000 }, // Added 3 hours
 ];
 
 // Define sensor types and their properties (color, unit)
@@ -102,7 +100,6 @@ export default function DataGraph({ title }: Props) {
             0)
       ) {
         const date = new Date(point.timestamp);
-        // Adjust label format based on interval duration
         // Default to 1 hour in ms if interval not found, then calculate hours
         const durationMs =
           intervals.find((i) => i.key === selectedInterval)?.durationMs ??
