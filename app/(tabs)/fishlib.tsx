@@ -94,15 +94,25 @@ export default function FishLibraryScreen() {
     }
   };
 
-  // Determine border and placeholder colors based on theme
-  const inputBorderColor = ThemeColors[colorScheme].border;
-  const placeholderTextColor = ThemeColors[colorScheme].textMuted;
-  const inputTextColor = ThemeColors[colorScheme].text;
-  const inputBackgroundColor = ThemeColors[colorScheme].inputBackground;
+  // Determine theme-specific colors
+  const colors = ThemeColors[colorScheme];
+  const inputBorderColor = colors.border;
+  const placeholderTextColor = colors.textSecondary; // Use textSecondary instead of textMuted
+  const inputTextColor = colors.text;
+  const inputBackgroundColor = colors.background;
+  const cardBackgroundColor = colors.backgroundSecondary; // Use secondary background for card
+  const cardBorderColor = colors.border;
+  const detailLabelColor = colors.textSecondary; // Use textSecondary instead of textMuted
+  const detailValueColor = colors.text;
+  const detailBorderColor = colors.border;
+  const fishNameColor = colors.tint; // Keep using tint for the name
 
   return (
     <ScrollView
-      style={[styles.container, { paddingTop: insets.top }]}
+      style={[
+        styles.container,
+        { paddingTop: insets.top, backgroundColor: colors.background },
+      ]} // Use theme background
       contentContainerStyle={styles.contentContainer}
       keyboardShouldPersistTaps="handled" // Dismiss keyboard on tap outside input
     >
@@ -130,14 +140,18 @@ export default function FishLibraryScreen() {
           autoCapitalize="words" // Capitalize first letter of words
         />
         <TouchableOpacity
-          style={styles.searchButton}
+          style={[styles.searchButton, { backgroundColor: colors.tint }]} // Use theme tint
           onPress={handleSearch}
           disabled={isLoading} // Disable button while loading
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color="#FFFFFF" /> // Use white for contrast on tint background
           ) : (
-            <IconSymbol name="magnifyingglass" size={18} color="#fff" />
+            <IconSymbol
+              name="magnifyingglass"
+              size={18}
+              color="#FFFFFF" // Use white for contrast on tint background
+            />
           )}
         </TouchableOpacity>
       </View>
@@ -147,35 +161,69 @@ export default function FishLibraryScreen() {
         {isLoading ? (
           // Loading Indicator
           <View style={styles.centeredContainer}>
-            <ActivityIndicator
-              size="large"
-              color={ThemeColors[colorScheme].tint}
-            />
+            <ActivityIndicator size="large" color={colors.tint} />
             <ThemedText style={styles.statusText}>Searching...</ThemedText>
           </View>
         ) : error ? (
           // Error Message
-          <ThemedView style={styles.errorContainer}>
+          <ThemedView
+            style={[
+              styles.errorContainer,
+              {
+                borderColor: colors.danger, // Use theme's danger color for border
+                backgroundColor: colors.backgroundSecondary, // Use secondary background, consistent with results card
+              },
+            ]}
+          >
             <IconSymbol
               name="exclamationmark.triangle.fill" // Use filled icon for errors
               size={30}
-              color={ThemeColors.error} // Use a defined error color from the theme import
+              color={colors.danger} // Use theme's danger color for icon
             />
-            <ThemedText style={styles.errorText}>{error}</ThemedText>
+            <ThemedText
+              style={{ ...styles.errorText, color: colors.danger }} // Merge styles into one object
+            >
+              {error}
+            </ThemedText>
           </ThemedView>
         ) : fishData ? (
           // Fish Data Display
-          <ThemedView style={styles.resultsCard}>
-            <ThemedText type="subtitle" style={styles.fishName}>
+          <ThemedView
+            style={[
+              styles.resultsCard,
+              {
+                backgroundColor: cardBackgroundColor,
+                borderColor: cardBorderColor,
+              },
+            ]}
+          >
+            <ThemedText
+              type="subtitle"
+              style={{ ...styles.fishName, color: fishNameColor }} // Merge styles into one object
+            >
               {fishData["Fish Name"]}
             </ThemedText>
             <View style={styles.detailGrid}>
               {Object.entries(fishData)
                 .filter(([key]) => key !== "Fish Name") // Don't repeat the name
                 .map(([key, value]) => (
-                  <View key={key} style={styles.detailItem}>
-                    <ThemedText style={styles.detailLabel}>{key}:</ThemedText>
-                    <ThemedText style={styles.detailValue}>{value}</ThemedText>
+                  <View
+                    key={key}
+                    style={[
+                      styles.detailItem,
+                      { borderBottomColor: detailBorderColor },
+                    ]}
+                  >
+                    <ThemedText
+                      style={{ ...styles.detailLabel, color: detailLabelColor }}
+                    >
+                      {key}:
+                    </ThemedText>
+                    <ThemedText
+                      style={{ ...styles.detailValue, color: detailValueColor }}
+                    >
+                      {value}
+                    </ThemedText>
                   </View>
                 ))}
             </View>
@@ -186,7 +234,7 @@ export default function FishLibraryScreen() {
             <IconSymbol
               name="book.closed"
               size={40}
-              color={ThemeColors[colorScheme].textMuted}
+              color={colors.textSecondary}
             />
             <ThemedText style={styles.statusText}>
               Enter a fish name above to search the library.
@@ -198,26 +246,7 @@ export default function FishLibraryScreen() {
   );
 }
 
-// Define Colors object for easier access (replace with your actual Colors constant)
-const Colors = {
-  light: {
-    text: "#000",
-    textMuted: "#6c757d",
-    background: "#fff",
-    tint: "#0a7ea4",
-    border: "#ccc",
-    inputBackground: "rgba(0, 0, 0, 0.05)",
-  },
-  dark: {
-    text: "#fff",
-    textMuted: "#adb5bd",
-    background: "#000",
-    tint: "#0a7ea4", // Or a lighter blue for dark mode
-    border: "#444",
-    inputBackground: "rgba(255, 255, 255, 0.1)",
-  },
-  error: "#dc2626", // Consistent error color
-};
+// Remove the local Colors object, rely on imported ThemeColors
 
 const styles = StyleSheet.create({
   container: {
@@ -249,7 +278,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   searchButton: {
-    backgroundColor: Colors.light.tint, // Use theme tint color
+    // backgroundColor is now set dynamically
     padding: 12, // Make button square-ish
     justifyContent: "center",
     alignItems: "center",
@@ -258,8 +287,8 @@ const styles = StyleSheet.create({
     width: 48,
   },
   contentArea: {
-    flex: 1, // Allow this area to grow and center content vertically
-    justifyContent: "center", // Center content vertically in this area
+    // Removed flex: 1 and justifyContent: 'center' based on previous request
+    marginTop: 16, // Keep potential margin
   },
   centeredContainer: {
     // For loading and placeholder
@@ -286,14 +315,13 @@ const styles = StyleSheet.create({
     marginVertical: 32, // Give more vertical space
     padding: 20, // More padding
     borderRadius: 8,
-    backgroundColor: "rgba(220, 38, 38, 0.1)", // Light red background
+    // backgroundColor and borderColor set dynamically
     borderWidth: 1,
-    borderColor: "rgba(220, 38, 38, 0.3)",
     alignItems: "center",
     gap: 10, // Increased gap
   },
   errorText: {
-    color: Colors.error, // Red text color
+    // color is set dynamically
     fontSize: 16,
     textAlign: "center",
     fontWeight: "500", // Slightly bolder error text
@@ -303,18 +331,14 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 12,
     borderWidth: 1,
-    // Use theme colors for border and background
-    // borderColor: Colors[colorScheme].border,
-    // backgroundColor: Colors[colorScheme].inputBackground, // Or a card-specific background
-    borderColor: "rgba(229, 229, 229, 0.5)", // Keeping original for now
-    backgroundColor: "rgba(0,0,0,0.1)", // Keeping original for now
+    // backgroundColor and borderColor are now set dynamically
   },
   fishName: {
     fontSize: 24, // Larger fish name
     fontWeight: "bold",
     marginBottom: 20, // More space below name
     textAlign: "center",
-    color: Colors.light.tint, // Use theme tint
+    // color is set dynamically
   },
   detailGrid: {
     // Simple vertical list for now
@@ -325,22 +349,19 @@ const styles = StyleSheet.create({
     alignItems: "flex-start", // Align items top if text wraps
     paddingVertical: 10, // Increased padding
     borderBottomWidth: 1,
-    // Use theme border color
-    // borderBottomColor: Colors[colorScheme].border,
-    borderBottomColor: "rgba(229, 229, 229, 0.2)", // Keeping original for now
+    // borderBottomColor is set dynamically
     gap: 8, // Add gap between label and value
   },
   detailLabel: {
     fontSize: 15,
-    // Use theme muted text color
-    // color: Colors[colorScheme].textMuted,
-    color: "#aaa", // Keeping original for now
+    // color is set dynamically
     fontWeight: "500",
     flexBasis: "40%", // Give label a fixed basis percentage
     flexShrink: 0, // Prevent label from shrinking
   },
   detailValue: {
     fontSize: 15,
+    // color is set dynamically
     fontWeight: "600",
     textAlign: "right",
     flexShrink: 1, // Allow value text to wrap if needed
