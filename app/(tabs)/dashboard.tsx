@@ -75,8 +75,7 @@ export default function DashboardScreen() {
       {/* WATER PARAMETERS */}
       <ThemedView style={styles.sectionCard}>
         <ThemedView style={styles.sectionHeader}>
-          <IconSymbol name="drop" size={20} color="#0a7ea4" />{" "}
-          {/* Adjusted size */}
+          <IconSymbol name="drop" size={20} color="#0a7ea4" />
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             Water Parameters
           </ThemedText>

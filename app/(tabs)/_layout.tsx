@@ -39,7 +39,7 @@ export default function TabLayout() {
         options={{
           title: "My Tank",
           tabBarIcon: ({ color }: { color: string }) => (
-            <IconSymbol size={28} name="house.fill" color={color} />
+            <IconSymbol size={28} name="water.waves" color={color} />
           ),
         }}
       />
@@ -54,6 +54,16 @@ export default function TabLayout() {
               name="chart.line.uptrend.xyaxis"
               color={color}
             />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="fishlib"
+        options={{
+          title: "Fish Library",
+          tabBarIcon: ({ color }: { color: string }) => (
+            <IconSymbol size={28} name="book.closed.fill" color={color} />
           ),
         }}
       />

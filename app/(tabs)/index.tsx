@@ -6,6 +6,8 @@ import {
   Alert,
   useColorScheme,
   TouchableOpacity,
+  View,
+  Text,
 } from "react-native"; // Core RN
 import { useSafeAreaInsets } from "react-native-safe-area-context"; // Safe area
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs"; // Tab bar height
@@ -53,69 +55,36 @@ export default function HomeScreen() {
         Your Intelligent Aquarium Control Center
       </ThemedText>
 
-      {/* System Status Information Block */}
-      <ThemedView card style={styles.infoBlock}>
-        <ThemedView style={styles.statusSection}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            System Status
-          </ThemedText>
-
-          {/* MQTT Connection Status Display */}
-          <ThemedView style={styles.statusRow}>
-            <ThemedView style={styles.statusItem}>
-              {/* Wifi icon indicating connection status */}
-              <IconSymbol
-                name={isConnected ? "wifi" : "wifi.slash"} // Dynamic icon based on connection
-                size={24}
-                color={isConnected ? "#16a34a" : "#dc2626"} // Dynamic color
-              />
-              <ThemedView style={styles.statusTextContainer}>
-                <ThemedText>MQTT Connection</ThemedText>
-                {/* Text displaying connection status */}
-                <ThemedText
-                  style={[
-                    styles.statusValue,
-                    {
-                      color: isConnected ? "#16a34a" : "#dc2626", // Dynamic color
-                    },
-                  ]}
-                >
-                  {isConnected ? "Connected" : "Disconnected"}
-                </ThemedText>
-              </ThemedView>
-            </ThemedView>
-          </ThemedView>
-
-          {/* Button to Connect/Disconnect MQTT */}
-          <TouchableOpacity
-            style={styles.connectButton}
-            onPress={toggleConnection} // IMPORTANT: Toggles MQTT connection
-          >
-            <ThemedText style={styles.buttonText}>
-              {/* Button label changes based on connection status */}
-              {isConnected ? "Disconnect MQTT" : "Connect to MQTT"}
-            </ThemedText>
-          </TouchableOpacity>
-        </ThemedView>
-      </ThemedView>
-
       {/* Quick Guide Section */}
       <ThemedText type="subtitle" style={styles.sectionTitle}>
         Quick Guide
       </ThemedText>
       <ThemedView card style={styles.guideSection}>
         <ThemedText style={styles.guideText}>
-          This is a demo application for the SmartAqua project. It allows you to
-          monitor and control your aquarium system remotely.
+          Welcome to SmartAqua! Monitor your aquarium's key parameters and
+          explore fish information.
         </ThemedText>
         <ThemedText style={styles.guideText}>
-          To get started, connect to the MQTT broker using the button above or
-          via the Settings tab.
+          Use the bottom tabs to navigate:
         </ThemedText>
-        <ThemedText style={styles.guideText}>
-          Navigate using the bottom tabs to view the dashboard, fish guide, or
-          adjust settings.
-        </ThemedText>
+        <View style={styles.guidePoints}>
+          <ThemedText style={styles.guidePoint}>
+            • <ThemedText style={styles.tabName}>Home:</ThemedText> This welcome
+            screen.
+          </ThemedText>
+          <ThemedText style={styles.guidePoint}>
+            • <ThemedText style={styles.tabName}>My Tank:</ThemedText> (Future
+            feature) Manage tank details.
+          </ThemedText>
+          <ThemedText style={styles.guidePoint}>
+            • <ThemedText style={styles.tabName}>Dashboard:</ThemedText> View
+            live sensor data, history graphs, and feeding controls.
+          </ThemedText>
+          <ThemedText style={styles.guidePoint}>
+            • <ThemedText style={styles.tabName}>Fish Library:</ThemedText>{" "}
+            Search for information about different fish species.
+          </ThemedText>
+        </View>
       </ThemedView>
 
       {/* Footer Section */}
