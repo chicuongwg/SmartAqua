@@ -76,6 +76,10 @@ export default function HomeScreen() {
         </ThemedText>
         <View style={styles.guidePoints}>
           <ThemedText style={styles.guidePoint}>
+            • <ThemedText style={styles.tabName}>New Sensor:</ThemedText> Add pH
+            sensor to the system.
+          </ThemedText>
+          <ThemedText style={styles.guidePoint}>
             •{" "}
             <ThemedText style={styles.tabName}>Fish Compatibility:</ThemedText>{" "}
             Check compatibility of fish species with current tank condition.
