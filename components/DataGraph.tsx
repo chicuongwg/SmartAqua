@@ -44,7 +44,7 @@ type Props = {
 
 export default function DataGraph({ title }: Props) {
   const { width } = useWindowDimensions();
-  const [selectedInterval, setSelectedInterval] = useState<TimeInterval>("1h");
+  const [selectedInterval, setSelectedInterval] = useState<TimeInterval>("1m");
 
   const mqttContext = useMqtt();
   const temperatureHistory = mqttContext.temperatureHistory ?? [];

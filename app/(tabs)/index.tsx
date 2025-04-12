@@ -29,20 +29,6 @@ export default function HomeScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const colorScheme = useColorScheme();
 
-  // Access the global MQTT context state and functions
-  const { isConnected, connect, disconnect, aquariumData } = useMqtt(); // IMPORTANT: Get MQTT state/functions
-
-  // Function to handle toggling the MQTT connection
-  const toggleConnection = () => {
-    if (isConnected) {
-      disconnect(); // Disconnect via context
-      Alert.alert("MQTT", "Disconnected from MQTT broker");
-    } else {
-      connect(); // Connect via context
-      Alert.alert("MQTT", "Connecting to MQTT broker...");
-    }
-  };
-
   // Render the component UI
   return (
     <ScreenContainer>
@@ -73,8 +59,8 @@ export default function HomeScreen() {
             screen.
           </ThemedText>
           <ThemedText style={styles.guidePoint}>
-            • <ThemedText style={styles.tabName}>My Tank:</ThemedText> (Future
-            feature) Manage tank details.
+            • <ThemedText style={styles.tabName}>My Tank:</ThemedText> Search
+            for compatible fish species for current tank size.
           </ThemedText>
           <ThemedText style={styles.guidePoint}>
             • <ThemedText style={styles.tabName}>Dashboard:</ThemedText> View
@@ -83,6 +69,27 @@ export default function HomeScreen() {
           <ThemedText style={styles.guidePoint}>
             • <ThemedText style={styles.tabName}>Fish Library:</ThemedText>{" "}
             Search for information about different fish species.
+          </ThemedText>
+        </View>
+        <ThemedText style={styles.guideText}>
+          Future features include:
+        </ThemedText>
+        <View style={styles.guidePoints}>
+          <ThemedText style={styles.guidePoint}>
+            •{" "}
+            <ThemedText style={styles.tabName}>Fish Compatibility:</ThemedText>{" "}
+            Check compatibility of fish species with current tank condition.
+          </ThemedText>
+          <ThemedText style={styles.guidePoint}>
+            • <ThemedText style={styles.tabName}>In App Setting:</ThemedText>{" "}
+            Customize app settings.
+          </ThemedText>
+          <ThemedText style={styles.guidePoint}>
+            •{" "}
+            <ThemedText style={styles.tabName}>
+              Water Quality Alerts:
+            </ThemedText>{" "}
+            Get notified of water quality changes.
           </ThemedText>
         </View>
       </ThemedView>
@@ -265,5 +272,16 @@ const styles = StyleSheet.create({
   menuLabel: {
     marginTop: 8,
     fontWeight: "600",
+  },
+  guidePoints: {
+    marginTop: 8,
+    marginLeft: 16, // Indent the points
+  },
+  guidePoint: {
+    marginBottom: 4, // Add spacing between points
+    lineHeight: 20,
+  },
+  tabName: {
+    fontWeight: "600", // Highlight tab names
   },
 });

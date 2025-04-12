@@ -3,7 +3,9 @@ import { StyleSheet } from "react-native";
 import { ThemedView } from "./ThemedView";
 import { ThemedText } from "./ThemedText";
 import { IconSymbol } from "./ui/IconSymbol";
-import { AquariumData, WaterType } from "@/context/MqttContext"; // Assuming types are exported from context
+import { AquariumData } from "@/context/MqttContext";
+
+type WaterType = "lake" | "sea"; // Adjust if the actual values differ
 
 // Define BorderRadius constants locally if not imported globally
 const BorderRadius = {

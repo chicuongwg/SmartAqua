@@ -441,13 +441,11 @@ export default function FishPondDashboard() {
         </ThemedView>
 
         {/* Compatibility Analysis */}
-        {/* Render the new component, passing necessary props */}
         <ComparisonAnalysis
           selectedFish={selectedFish}
           aquariumData={aquariumData}
           pondWaterType={pondWaterType}
         />
-        {/* REMOVED: Old comparison results rendering JSX */}
       </ThemedView>
     </ScrollView>
   );

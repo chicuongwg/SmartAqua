@@ -3,11 +3,12 @@ import {
   StyleSheet,
   View,
   TextInput,
-  TouchableOpacity,
   ActivityIndicator,
   ScrollView,
   Alert,
-  useColorScheme, // Import useColorScheme
+  useColorScheme,
+  TouchableOpacity, // Import TouchableOpacity again
+  // Remove Button import if no longer used elsewhere
 } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -139,18 +140,23 @@ export default function FishLibraryScreen() {
           returnKeyType="search"
           autoCapitalize="words" // Capitalize first letter of words
         />
+        {/* Replace Button with TouchableOpacity */}
         <TouchableOpacity
-          style={[styles.searchButton, { backgroundColor: colors.tint }]} // Use theme tint
+          style={[
+            styles.searchButton, // Apply the new square button style
+            { backgroundColor: colors.tint }, // Set background color
+            isLoading && styles.searchButtonDisabled, // Apply disabled style if loading
+          ]}
           onPress={handleSearch}
-          disabled={isLoading} // Disable button while loading
+          disabled={isLoading} // Disable touch interaction while loading
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" /> // Use white for contrast on tint background
+            <ActivityIndicator size="small" color="#FFFFFF" /> // Show loader when loading
           ) : (
             <IconSymbol
               name="magnifyingglass"
-              size={18}
-              color="#FFFFFF" // Use white for contrast on tint background
+              size={20} // Adjust icon size as needed
+              color="#FFFFFF" // White icon
             />
           )}
         </TouchableOpacity>
@@ -246,8 +252,6 @@ export default function FishLibraryScreen() {
   );
 }
 
-// Remove the local Colors object, rely on imported ThemeColors
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -266,28 +270,30 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     marginBottom: 24,
-    alignItems: "center",
+    alignItems: "center", // Align items vertically
+    gap: 8, // Keep gap between input and button
   },
   searchInput: {
-    flex: 1,
-    height: 48, // Slightly taller input
-    borderWidth: 1.5, // Slightly thicker border
-    borderRadius: 8,
+    flex: 1, // Input takes remaining space
+    height: 48,
+    borderWidth: 1.5,
+    borderRadius: 8, // Keep input rounded
     paddingHorizontal: 16,
-    marginRight: 8,
     fontSize: 16,
   },
+
+  // Add style for the square TouchableOpacity button
   searchButton: {
-    // backgroundColor is now set dynamically
-    padding: 12, // Make button square-ish
+    width: 48,
+    height: 48,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 8,
-    height: 48,
-    width: 48,
+  },
+  searchButtonDisabled: {
+    opacity: 0.5, // Make button look disabled
   },
   contentArea: {
-    // Removed flex: 1 and justifyContent: 'center' based on previous request
     marginTop: 16, // Keep potential margin
   },
   centeredContainer: {
@@ -356,7 +362,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     // color is set dynamically
     fontWeight: "500",
-    flexBasis: "40%", // Give label a fixed basis percentage
+    flexBasis: "45%", // INCREASED from 40%
     flexShrink: 0, // Prevent label from shrinking
   },
   detailValue: {
@@ -365,6 +371,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "right",
     flexShrink: 1, // Allow value text to wrap if needed
-    flexBasis: "60%", // Allow value to take remaining space
+    flexBasis: "55%", // DECREASED from 60%
   },
 });

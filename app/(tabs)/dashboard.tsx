@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   ScrollView,
@@ -28,7 +28,7 @@ export default function DashboardScreen() {
   const { isConnected, aquariumData, publishMessage, connect } = useMqtt(); // IMPORTANT: Accessing MQTT state and functions
 
   // --- Add state for graph visibility ---
-  const [showGraph, setShowGraph] = useState(true); // Default to true (visible)
+  const [showGraph, setShowGraph] = useState(false); // Default to true (visible)
 
   // Handler to send FEED command via MQTT
   const handleFeed = async () => {
@@ -193,49 +193,44 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     fontSize: 28,
-    fontWeight: "bold",
+    fontWeight: "bold", // Keep bold from original dashboard
     marginVertical: 24,
     textAlign: "center",
   },
   sectionCard: {
     borderRadius: 12,
+    overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(229, 229, 229, 0.5)",
-    marginBottom: 20,
+    borderColor: "#e5e5e5",
+    marginBottom: 24,
     padding: 16,
-    backgroundColor: "rgba(0,0,0,0.1)",
+    backgroundColor: "rgba(0,0,0,0)",
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 16,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(229, 229, 229, 0.3)",
+    gap: 8,
+    marginBottom: 12,
   },
-  // --- New styles for graph header ---
+
   graphSectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between", // Push title and switch apart
-    marginBottom: 16,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(229, 229, 229, 0.3)",
+    justifyContent: "space-between",
+    marginBottom: 12,
   },
   graphHeaderTitle: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10, // Keep gap for icon and title
+    gap: 8,
   },
-  // --- End new styles ---
+
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
   },
   gridContainer: {
-    // Styles for grid container
+    marginTop: 12,
   },
   gridRow: {
     flexDirection: "row",

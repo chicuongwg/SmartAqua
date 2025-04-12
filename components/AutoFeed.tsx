@@ -382,7 +382,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 8,
-    // backgroundColor: Colors.light.cardBackground, // Use theme card background
     backgroundColor: "rgba(0,0,0,0.05)", // Keeping original for now
     gap: 10, // Internal spacing
   },
