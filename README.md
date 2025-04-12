@@ -1,4 +1,4 @@
-# Smart Aquarium Management IoT System
+# SMARTAQUA - Smart Aquarium IoT System for Home Use
 
 ## Overview
 
@@ -6,19 +6,19 @@ The Smart Aquarium Management IoT System is an intelligent aquarium monitoring a
 
 ## Features
 
-- Real-time Sensor Monitoring: Tracks water quality parameters such as temperature, TDS, turbulent.
+- Real-time Sensor Monitoring: Tracks water quality parameters such as temperature, TDS, and turbulent.
 
-- AI Recommendation Model: Provides suggestions based on sensor readings (e.g., water change alerts).
+- AI Recommendation Model (using KNN classifier): Provide fish species that could adapt to the current state of the tank.
 
 - Automated Feeding System: Schedules and executes feeding times based on fish species and dietary needs.
 
 - Remote Control via Mobile App: Allows users to control the filtration and feeding system remotely.
 
-## Protocols Used:
+### Protocols Used:
 
-- MQTT: For controlling devices (e.g., feeding and filtration control).
+- MQTT: For controlling devices (e.g., feeding control).
 
-## Functional Flow
+### Functional Flow
 
 1. Read sensor data from aquarium.
 
@@ -26,33 +26,23 @@ The Smart Aquarium Management IoT System is an intelligent aquarium monitoring a
 
 3. Update the mobile app with the latest system status.
 
-## Routing Table
-
-| Condition              | Action                                     |
-| ---------------------- | ------------------------------------------ |
-| Turb > 50%             | Alert user, suggest a partial water change |
-| TDS > 300 ppm          | Alert user, suggest a partial water change |
-| Scheduled Feeding Time | Activate feeder motor                      |
-
-## System Updates & Maintenance
-
-- Add/Remove fish species to update feeding schedules and maintenance routines.
-
-- Adjust nutrition, medication, and probiotic recommendations.
+### System Updates & Maintenance
 
 - Modify aquarium settings based on fish type data.
 
 - Perform OTA firmware updates to enhance AI and system functionality.
 
-## Demo Scenarios
+### Demo Scenarios
 
 - Monitor live water quality metrics via the mobile app.
 
 - Schedule and execute automatic feeding.
 
-- Control the filtration system remotely from the mobile app.
+- Recommend suitable fish type for current tank setting.
 
-## Get started with Expo
+## Get started with SMARTAQUA
+
+### Expo & Expo GO
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
@@ -62,17 +52,44 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app, then connect with Expo GO:
+2. Start the app, then connect with Expo GO (install via appstore):
 
    ```bash
-    npx expo start
+   npx expo start
    ```
 
-or to start with debug, use:
+or to start with empty cache, use:
 
 ```bash
 npx expo start --clean
 ```
+
+or
+
+```bash
+npx expo start --tunnel --clean
+```
+
+### HiveMQ
+
+Create a HiveMQ account, then change the following in [MqttContext.tsx](context/MqttContext.tsx)":
+
+```bash
+const MQTT_URL =
+"wss://(your URL in hiveMQ):8884/mqtt";
+const MQTT_USERNAME = "Your Username";
+const MQTT_PASSWORD = "Your Password"
+```
+
+### Server
+
+Now using https://smartaquarium-jmlc.onrender.com/fish-rcm for Fish Recommendation System, and https://smartaquarium-jmlc.onrender.com/fish for Fish Library
+
+### IoT device
+
+Change the "MQTT HiveMQ Cloud" in [IoT source file](test2.ino) similar to HiveMQ tutorial above, also change Wifi accordingly to your using Wifi, change before upload code to device!
+
+## For more:
 
 In the output, you'll find options to open the app in a
 
@@ -83,7 +100,7 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
-## Get a fresh project
+### Get a fresh project
 
 When you're ready, run:
 
@@ -93,17 +110,7 @@ npm run reset-project
 
 This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
-## Learn more
-
 To learn more about developing your project with Expo, look at the following resources:
 
 - [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
 - [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## NodeJS server
-
-To run server, cd to /server, then
-
-```bash
-node index.js
-```
