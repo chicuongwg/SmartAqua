@@ -61,7 +61,7 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 or to start with empty cache, use:
 
 ```bash
-npx expo start --clean
+npx expo start --clear
 ```
 
 or
