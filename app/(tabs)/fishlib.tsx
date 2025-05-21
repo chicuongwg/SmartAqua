@@ -7,16 +7,16 @@ import {
   ScrollView,
   Alert,
   useColorScheme,
-  TouchableOpacity, // Import TouchableOpacity again
-  // Remove Button import if no longer used elsewhere
+  TouchableOpacity,
 } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
-import { IconSymbol } from "@/components/ui/IconSymbol"; // Assuming you have this
+import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Colors as ThemeColors } from "@/constants/Colors"; // Import Colors for theme
+import { Colors as ThemeColors } from "@/constants/Colors";
+import { getFishInfo } from "@/services/FishService"; // Import hàm getFishInfo từ service
 
-// Type for the API response data
+// Type cho dữ liệu cá
 type FishInfo = {
   Aggression: string;
   Availability: string;
@@ -26,17 +26,20 @@ type FishInfo = {
   "Fish Name": string;
   "Max Size": string;
   "Minimum Tank Size": string;
-  Temperature: string;
   "pH Range": string;
+  Temperature: string;
 };
 
-const API_URL = "https://smartaquarium-jmlc.onrender.com/fish";
+// Kiểu trả về có thể là FishInfo hoặc lỗi
+type FishServiceResponse =
+  | FishInfo
+  | { error: string; multipleMatches?: boolean; matches?: string[] };
 
 export default function FishLibraryScreen() {
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme() ?? "light"; // Get current theme
+  const colorScheme = useColorScheme() ?? "light";
   const [searchTerm, setSearchTerm] = useState("");
-  const [fishData, setFishData] = useState<FishInfo | null>(null);
+  const [fishData, setFishData] = useState<FishServiceResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,80 +51,136 @@ export default function FishLibraryScreen() {
 
     setIsLoading(true);
     setError(null);
-    setFishData(null); // Clear previous results
+    setFishData(null);
 
     try {
-      console.log(`🔍 Searching for: ${searchTerm}`);
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name: searchTerm.trim() }),
-      });
+      const result = getFishInfo(searchTerm.trim()) as FishServiceResponse;
 
-      console.log(`🚦 API Response Status: ${response.status}`);
-
-      if (!response.ok) {
-        // Try to get error message from response body if possible
-        let errorMsg = `Error: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          errorMsg = errorData.message || errorMsg; // Use message from API if available
-          console.error("API Error Response:", errorData);
-        } catch (e) {
-          // Ignore if response body is not JSON or empty
-          console.error("Could not parse error response body:", e);
-        }
-        // Handle specific case where fish might not be found
-        if (response.status === 404) {
-          errorMsg = `Fish named "${searchTerm.trim()}" not found.`;
-        }
-        throw new Error(errorMsg);
+      if ("error" in result && !result.multipleMatches) {
+        throw new Error(result.error);
       }
-
-      const data: FishInfo = await response.json();
-      console.log("✅ API Response Data:", data);
-      setFishData(data);
-    } catch (err: any) {
-      console.error("❌ API Call Failed:", err);
-      setError(err.message || "An unexpected error occurred.");
-      Alert.alert(
-        "Search Failed",
-        err.message || "An unexpected error occurred."
-      );
+      setFishData(result);
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "An unexpected error occurred.";
+      setError(errorMessage);
+      Alert.alert("Search Failed", errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Determine theme-specific colors
+  // Theme colors
   const colors = ThemeColors[colorScheme];
   const inputBorderColor = colors.border;
-  const placeholderTextColor = colors.textSecondary; // Use textSecondary instead of textMuted
+  const placeholderTextColor = colors.textSecondary;
   const inputTextColor = colors.text;
   const inputBackgroundColor = colors.background;
-  const cardBackgroundColor = colors.backgroundSecondary; // Use secondary background for card
-  const cardBorderColor = colors.border;
-  const detailLabelColor = colors.textSecondary; // Use textSecondary instead of textMuted
-  const detailValueColor = colors.text;
-  const detailBorderColor = colors.border;
-  const fishNameColor = colors.tint; // Keep using tint for the name
+  const cardBackgroundColor = "white"; // Đặt nền trắng cho phần dữ liệu cá
+  const cardBorderColor = "#ddd"; // Màu viền nhẹ cho khung
+  const detailLabelColor = "#444"; // Màu chữ label tối
+  const detailValueColor = "#000"; // Màu chữ giá trị đậm hơn
+  const fishNameColor = "#007AFF"; // Màu xanh dương cho tên cá
+
+  // Hàm render thông tin cá
+  const renderFishInfo = (fish: FishInfo) => (
+    <View
+      style={[
+        styles.resultsCard,
+        { backgroundColor: cardBackgroundColor, borderColor: cardBorderColor },
+      ]}
+    >
+      <ThemedText
+        type="subtitle"
+        style={[styles.fishName, { color: fishNameColor }]}
+      >
+        {fish["Fish Name"]}
+      </ThemedText>
+      <View style={styles.detailGrid}>
+        {Object.entries(fish)
+          .filter(([key]) => key !== "Fish Name")
+          .map(([key, value]) => (
+            <View
+              key={key}
+              style={[
+                styles.detailItem,
+                { borderBottomColor: cardBorderColor },
+              ]}
+            >
+              <ThemedText
+                style={[styles.detailLabel, { color: detailLabelColor }]}
+              >
+                {key}:
+              </ThemedText>
+              <ThemedText
+                style={[styles.detailValue, { color: detailValueColor }]}
+              >
+                {value}
+              </ThemedText>
+            </View>
+          ))}
+      </View>
+    </View>
+  );
+
+  // Render khi có nhiều kết quả trùng
+  const renderMultipleMatches = (matches: string[]) => (
+    <View
+      style={[
+        styles.resultsCard,
+        { backgroundColor: cardBackgroundColor, borderColor: cardBorderColor },
+      ]}
+    >
+      <ThemedText style={[styles.message, { color: detailValueColor }]}>
+        Found multiple fish matching '{searchTerm}':
+      </ThemedText>
+      {matches.map((name, idx) => (
+        <ThemedText
+          key={idx}
+          style={[styles.matchItem, { color: detailValueColor }]}
+        >
+          - {name}
+        </ThemedText>
+      ))}
+    </View>
+  );
+
+  // Render lỗi
+  const renderError = (errorMessage: string) => (
+    <View
+      style={[
+        styles.errorContainer,
+        {
+          borderColor: colors.danger,
+          backgroundColor: colors.backgroundSecondary,
+        },
+      ]}
+    >
+      <IconSymbol
+        name="exclamationmark.triangle.fill"
+        size={30}
+        color={colors.danger}
+      />
+      <ThemedText style={{ ...styles.errorText, color: colors.danger }}>
+        {errorMessage}
+      </ThemedText>
+    </View>
+  );
 
   return (
     <ScrollView
       style={[
         styles.container,
         { paddingTop: insets.top, backgroundColor: colors.background },
-      ]} // Use theme background
+      ]}
       contentContainerStyle={styles.contentContainer}
-      keyboardShouldPersistTaps="handled" // Dismiss keyboard on tap outside input
+      keyboardShouldPersistTaps="handled"
     >
       <ThemedText type="title" style={styles.pageTitle}>
         Fish Library
       </ThemedText>
 
-      {/* Search Input and Button */}
+      {/* Search bar */}
       <View style={styles.searchContainer}>
         <TextInput
           style={[
@@ -136,106 +195,44 @@ export default function FishLibraryScreen() {
           placeholderTextColor={placeholderTextColor}
           value={searchTerm}
           onChangeText={setSearchTerm}
-          onSubmitEditing={handleSearch} // Allow searching via keyboard return key
+          onSubmitEditing={handleSearch}
           returnKeyType="search"
-          autoCapitalize="words" // Capitalize first letter of words
+          autoCapitalize="words"
         />
-        {/* Replace Button with TouchableOpacity */}
         <TouchableOpacity
           style={[
-            styles.searchButton, // Apply the new square button style
-            { backgroundColor: colors.tint }, // Set background color
-            isLoading && styles.searchButtonDisabled, // Apply disabled style if loading
+            styles.searchButton,
+            { backgroundColor: colors.tint },
+            isLoading && styles.searchButtonDisabled,
           ]}
           onPress={handleSearch}
-          disabled={isLoading} // Disable touch interaction while loading
+          disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" /> // Show loader when loading
+            <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <IconSymbol
-              name="magnifyingglass"
-              size={20} // Adjust icon size as needed
-              color="#FFFFFF" // White icon
-            />
+            <IconSymbol name="magnifyingglass" size={20} color="#FFFFFF" />
           )}
         </TouchableOpacity>
       </View>
 
-      {/* Content Area: Placeholder, Loading, Error, or Results */}
+      {/* Content area */}
       <View style={styles.contentArea}>
         {isLoading ? (
-          // Loading Indicator
           <View style={styles.centeredContainer}>
             <ActivityIndicator size="large" color={colors.tint} />
             <ThemedText style={styles.statusText}>Searching...</ThemedText>
           </View>
         ) : error ? (
-          // Error Message
-          <ThemedView
-            style={[
-              styles.errorContainer,
-              {
-                borderColor: colors.danger, // Use theme's danger color for border
-                backgroundColor: colors.backgroundSecondary, // Use secondary background, consistent with results card
-              },
-            ]}
-          >
-            <IconSymbol
-              name="exclamationmark.triangle.fill" // Use filled icon for errors
-              size={30}
-              color={colors.danger} // Use theme's danger color for icon
-            />
-            <ThemedText
-              style={{ ...styles.errorText, color: colors.danger }} // Merge styles into one object
-            >
-              {error}
-            </ThemedText>
-          </ThemedView>
+          renderError(error)
         ) : fishData ? (
-          // Fish Data Display
-          <ThemedView
-            style={[
-              styles.resultsCard,
-              {
-                backgroundColor: cardBackgroundColor,
-                borderColor: cardBorderColor,
-              },
-            ]}
-          >
-            <ThemedText
-              type="subtitle"
-              style={{ ...styles.fishName, color: fishNameColor }} // Merge styles into one object
-            >
-              {fishData["Fish Name"]}
-            </ThemedText>
-            <View style={styles.detailGrid}>
-              {Object.entries(fishData)
-                .filter(([key]) => key !== "Fish Name") // Don't repeat the name
-                .map(([key, value]) => (
-                  <View
-                    key={key}
-                    style={[
-                      styles.detailItem,
-                      { borderBottomColor: detailBorderColor },
-                    ]}
-                  >
-                    <ThemedText
-                      style={{ ...styles.detailLabel, color: detailLabelColor }}
-                    >
-                      {key}:
-                    </ThemedText>
-                    <ThemedText
-                      style={{ ...styles.detailValue, color: detailValueColor }}
-                    >
-                      {value}
-                    </ThemedText>
-                  </View>
-                ))}
-            </View>
-          </ThemedView>
+          // Nếu nhiều kết quả thì show danh sách, ngược lại show cá
+          "multipleMatches" in fishData && fishData.multipleMatches ? (
+            renderMultipleMatches(fishData.matches ?? [])
+          ) : (
+            renderFishInfo(fishData as FishInfo)
+          )
         ) : (
-          // Initial Placeholder / No Results
           <View style={styles.centeredContainer}>
             <IconSymbol
               name="book.closed"
@@ -258,8 +255,8 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
-    paddingBottom: 32, // Extra padding at the bottom
-    flexGrow: 1, // Ensure content can fill height if needed
+    paddingBottom: 32,
+    flexGrow: 1,
   },
   pageTitle: {
     fontSize: 28,
@@ -270,19 +267,17 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     marginBottom: 24,
-    alignItems: "center", // Align items vertically
-    gap: 8, // Keep gap between input and button
+    alignItems: "center",
+    gap: 8,
   },
   searchInput: {
-    flex: 1, // Input takes remaining space
+    flex: 1,
     height: 48,
     borderWidth: 1.5,
-    borderRadius: 8, // Keep input rounded
+    borderRadius: 8,
     paddingHorizontal: 16,
     fontSize: 16,
   },
-
-  // Add style for the square TouchableOpacity button
   searchButton: {
     width: 48,
     height: 48,
@@ -291,86 +286,76 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   searchButtonDisabled: {
-    opacity: 0.5, // Make button look disabled
+    opacity: 0.5,
   },
   contentArea: {
-    marginTop: 16, // Keep potential margin
+    marginTop: 16,
   },
   centeredContainer: {
-    // For loading and placeholder
     alignItems: "center",
     padding: 20,
     gap: 12,
   },
   statusText: {
-    // Used for loading and placeholder text
     fontSize: 16,
     textAlign: "center",
     opacity: 0.8,
   },
-  loadingContainer: {
-    alignItems: "center",
-    marginTop: 32,
-    gap: 8,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: "#666",
-  },
   errorContainer: {
-    marginVertical: 32, // Give more vertical space
-    padding: 20, // More padding
+    marginVertical: 32,
+    padding: 20,
     borderRadius: 8,
-    // backgroundColor and borderColor set dynamically
     borderWidth: 1,
     alignItems: "center",
-    gap: 10, // Increased gap
+    gap: 10,
   },
   errorText: {
-    // color is set dynamically
     fontSize: 16,
     textAlign: "center",
-    fontWeight: "500", // Slightly bolder error text
+    fontWeight: "500",
   },
   resultsCard: {
     marginTop: 16,
     padding: 20,
     borderRadius: 12,
     borderWidth: 1,
-    // backgroundColor and borderColor are now set dynamically
   },
   fishName: {
-    fontSize: 24, // Larger fish name
+    fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 20, // More space below name
+    marginBottom: 20,
     textAlign: "center",
-    // color is set dynamically
   },
-  detailGrid: {
-    // Simple vertical list for now
-  },
+  detailGrid: {},
   detailItem: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start", // Align items top if text wraps
-    paddingVertical: 10, // Increased padding
+    alignItems: "flex-start",
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    // borderBottomColor is set dynamically
-    gap: 8, // Add gap between label and value
+    gap: 8,
   },
   detailLabel: {
     fontSize: 15,
-    // color is set dynamically
     fontWeight: "500",
-    flexBasis: "45%", // INCREASED from 40%
-    flexShrink: 0, // Prevent label from shrinking
+    flexBasis: "45%",
+    flexShrink: 0,
   },
   detailValue: {
     fontSize: 15,
-    // color is set dynamically
     fontWeight: "600",
     textAlign: "right",
-    flexShrink: 1, // Allow value text to wrap if needed
-    flexBasis: "55%", // DECREASED from 60%
+    flexShrink: 1,
+    flexBasis: "55%",
+  },
+  message: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  matchItem: {
+    fontSize: 14,
+    paddingLeft: 10,
+    marginBottom: 4,
   },
 });

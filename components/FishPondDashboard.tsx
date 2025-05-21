@@ -18,6 +18,7 @@ import { IconSymbol } from "./ui/IconSymbol";
 import { useMqtt } from "@/context/MqttContext";
 import { Colors } from "@/constants/Colors";
 import ComparisonAnalysis from "./ComparisonAnalysis"; // Import the new component
+import { recommendFish } from "@/services/FishService"; // Import the local service instead of making API calls
 
 // Define BorderRadius constants locally
 const BorderRadius = {
@@ -52,10 +53,6 @@ type RecommendedFish = {
 
 // --- End Types ---
 
-// IMPORTANT: Replace with your actual API URL
-const RECOMMENDATION_API_URL =
-  "https://smartaquarium-jmlc.onrender.com/fish-rcm";
-
 export default function FishPondDashboard() {
   const colorScheme = useColorScheme() ?? "light";
 
@@ -65,7 +62,7 @@ export default function FishPondDashboard() {
   const [selectedFish, setSelectedFish] = useState<FishTemplate | null>(null);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  // REMOVED: comparisonResults state
+  // Tank dimensions
   const [tankLength, setTankLength] = useState<string>("");
   const [tankWidth, setTankWidth] = useState<string>("");
   const [tankHeight, setTankHeight] = useState<string>("");
@@ -143,31 +140,21 @@ export default function FishPondDashboard() {
     setShowSearchResults(true);
     setSearchResults([]);
 
-    const payload = { length, width, height, temperature };
-    console.log("Sending data to recommendation API:", payload);
-
     try {
-      const response = await fetch(RECOMMENDATION_API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `API request failed with status ${response.status}: ${errorText}`
-        );
-      }
-
-      const recommendedFishData: RecommendedFish[] = await response.json();
+      // Use the local service instead of API call
+      const recommendedFishData = recommendFish(
+        length,
+        width,
+        height,
+        temperature
+      );
       console.log("Received recommendations:", recommendedFishData);
-      setSearchResults(recommendedFishData); // IMPORTANT: Update state with API results
+      setSearchResults(recommendedFishData);
     } catch (error) {
       console.error("Error fetching fish recommendations:", error);
       Alert.alert(
-        "API Error",
-        "Failed to get fish recommendations. Check console."
+        "Recommendation Error",
+        "Failed to get fish recommendations."
       );
       setSearchResults([]);
     } finally {
